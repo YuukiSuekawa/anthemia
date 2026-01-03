@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coloring Ants - Living Jewels</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Zen+Old+Mincho:wght@400;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+        <div id="ui-layer">
+            <header>
+                <h1>Coloring Ants</h1>
+                <p class="subtitle">The Art of Luring</p>
+            </header>
+
+            <div id="controls">
+                <div class="palette">
+                    <button class="color-btn" data-color="#FF3333"
+                        style="background-color: #FF3333; box-shadow: 0 0 10px #FF3333;"></button>
+                    <button class="color-btn" data-color="#3366FF"
+                        style="background-color: #3366FF; box-shadow: 0 0 10px #3366FF;"></button>
+                    <button class="color-btn" data-color="#FFDD33"
+                        style="background-color: #FFDD33; box-shadow: 0 0 10px #FFDD33;"></button>
+                </div>
+                <div class="pot-status">
+                    <span id="pot-label">Potion Pot</span>
+                    <div id="pot-meter">
+                        <div id="pot-fill"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="js/bundle.js"></script>
+</body>
+
+</html>
