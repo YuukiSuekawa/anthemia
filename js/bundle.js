@@ -156,7 +156,9 @@ class Pot {
         this.fillLevel = 0;
         this.maxFill = 1000;
         this.uiMeter = document.getElementById('pot-fill');
+        this.uiMeter = document.getElementById('pot-fill');
         this.liquidPhase = 0;
+        this.isCollecting = false; // State to block filling during collection logic
 
         this.image = new Image();
         this.image.src = 'Resources/potion_empty.png';
@@ -165,9 +167,35 @@ class Pot {
     }
 
     addHoney(color, amount) {
+        if (this.isCollecting) return; // Reject honey while collecting
+
         this.color = Utils.mixColors(this.color, this.fillLevel, color, amount);
         this.fillLevel += amount;
         this.updateUI();
+
+        if (this.fillLevel >= this.maxFill) {
+            this.triggerCollection();
+        }
+    }
+
+    triggerCollection() {
+        this.isCollecting = true;
+
+        // Visual effect: Flash? Particles?
+        // For now, simple reset with a delay and callback to game
+
+        // Notify game
+        if (window.game) window.game.collectPotion();
+
+        // Animate Reset (Simple Fade/Drain for now)
+        // Ideally we would spawn a "flying potion" here
+
+        setTimeout(() => {
+            this.fillLevel = 0;
+            this.color = { r: 50, g: 50, b: 60 }; // Reset color
+            this.isCollecting = false;
+            this.updateUI();
+        }, 1000); // 1 second delay to show "Full" state
     }
 
     getEntranceLocation() {
@@ -547,6 +575,12 @@ class Game {
         this.lastTime = 0;
         this.selectedColor = '#FF3333';
 
+        // Potion Collection System
+        this.potionsCollected = 0;
+        this.scoreDisplay = document.getElementById('score-display');
+        this.flyingPotions = []; // List of active flying potions animations
+        this.potionIcon = document.getElementById('potion-icon'); // Target for animation
+
         this.init();
 
         this.canvas.addEventListener('click', (e) => this.handleClick(e));
@@ -560,6 +594,90 @@ class Game {
         for (let i = 0; i < 30; i++) {
             this.spawnAnt();
         }
+    }
+
+    collectPotion() {
+        this.potionsCollected++;
+        if (this.scoreDisplay) {
+            this.scoreDisplay.textContent = this.potionsCollected;
+
+            // Score pop animation
+            this.scoreDisplay.style.transform = "scale(1.5)";
+            setTimeout(() => {
+                this.scoreDisplay.style.transform = "scale(1)";
+            }, 200);
+        }
+    }
+
+    spawnFlyingPotion(color) {
+        // Target position (UI icon)
+        let tx = this.canvas.width - 50;
+        let ty = this.canvas.height - 50;
+
+        if (this.potionIcon) {
+            const rect = this.potionIcon.getBoundingClientRect();
+            // Convert page coords to canvas coords (assuming canvas fills window or similar)
+            // Just use rect relative to viewport if canvas is full screen
+            tx = rect.left + rect.width / 2;
+            ty = rect.top + rect.height / 2;
+        }
+
+        this.flyingPotions.push({
+            x: this.pot.x,
+            y: this.pot.y,
+            targetX: tx,
+            targetY: ty,
+            color: color,
+            progress: 0,
+            speed: 1.5 // Animation speed
+        });
+    }
+
+    updateFlyingPotions(dt) {
+        for (let i = this.flyingPotions.length - 1; i >= 0; i--) {
+            const p = this.flyingPotions[i];
+            p.progress += dt * p.speed;
+
+            if (p.progress >= 1) {
+                // Arrived
+                this.collectPotion();
+                this.flyingPotions.splice(i, 1);
+            } else {
+                // Ease out cubic
+                const t = 1 - Math.pow(1 - p.progress, 3);
+                p.x = Utils.lerp(this.pot.x, p.targetX, t);
+                p.y = Utils.lerp(this.pot.y, p.targetY, t);
+                p.scale = Utils.lerp(1.0, 0.2, t); // Shrink as it flies
+            }
+        }
+    }
+
+    drawFlyingPotions(ctx) {
+        this.flyingPotions.forEach(p => {
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.scale(p.scale, p.scale);
+
+            // Draw a simplified potion (or use the icon image if available?)
+            // Let's use the actual pot image + filled circle
+
+            // 1. Liquid
+            ctx.fillStyle = Utils.rgbToCss(p.color.r, p.color.g, p.color.b);
+            ctx.beginPath();
+            ctx.arc(0, 50, 48, 0, Math.PI * 2); // Simplified fill
+            ctx.fill();
+
+            // 2. Bottle (Reusing Pot logic roughly or just a circle outline for speed)
+            // Use instance image if loaded
+            if (this.pot.imageLoaded) {
+                ctx.save();
+                ctx.globalCompositeOperation = 'screen';
+                ctx.drawImage(this.pot.image, -140, -140, 280, 280);
+                ctx.restore();
+            }
+
+            ctx.restore();
+        });
     }
 
     spawnAnt() {
@@ -615,6 +733,8 @@ class Game {
         this.particles.update(deltaTime);
 
         this.honeys = this.honeys.filter(h => h.amount > 0);
+
+        this.updateFlyingPotions(deltaTime);
     }
 
     draw() {
@@ -627,7 +747,9 @@ class Game {
         this.honeys.forEach(honey => honey.draw(this.ctx));
         this.pot.draw(this.ctx);
         this.ants.forEach(ant => ant.draw(this.ctx));
+        this.ants.forEach(ant => ant.draw(this.ctx));
         this.particles.draw(this.ctx);
+        this.drawFlyingPotions(this.ctx);
     }
 }
 
@@ -645,6 +767,7 @@ window.addEventListener('load', () => {
     resize();
 
     const game = new Game(canvas);
+    window.game = game; // Expose to window for Pot access
     game.start();
 
     const colorBtns = document.querySelectorAll('.color-btn');

@@ -184,3 +184,80 @@ h1 {
     transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.5s;
     box-shadow: 0 0 10px currentColor;
 }
+
+#potion-counter {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: var(--glass-bg);
+    padding: 10px 20px;
+    border-radius: 16px;
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+#potion-icon {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 5px var(--gold-shine));
+}
+
+#potion-counter .label {
+    display: block;
+    margin-bottom: 2px;
+    font-family: 'Cinzel', serif;
+    color: var(--gold);
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+#score-display {
+    font-family: 'Zen Old Mincho', serif;
+    font-size: 2.0rem;
+    color: #fff;
+    text-shadow: 0 0 10px var(--gold-shine);
+    font-weight: 700;
+    line-height: 1;
+}
+
+@media (max-width: 768px) {
+    /* Mobile Layout adjustments */
+
+    /* Move Potion Pot status to bottom-left fixed position */
+    .pot-status {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        padding: 10px 15px;
+        z-index: 100;
+        /* Ensure it doesn't conflict with center controls if any */
+    }
+
+    /* Adjust Potion Counter to bottom-right fixed position */
+    #potion-counter {
+        bottom: 20px;
+        right: 20px;
+        padding: 8px 15px;
+        gap: 10px;
+    }
+
+    /* Smaller text/elements on mobile */
+    #pot-meter {
+        width: 140px;
+    }
+
+    #potion-icon {
+        width: 32px;
+        height: 32px;
+    }
+
+    #score-display {
+        font-size: 1.5rem;
+    }
+}
