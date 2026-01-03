@@ -151,12 +151,17 @@ class Pot {
     constructor(x, y) {
         this.x = x;
         this.y = y;
-        this.radius = 45;
+        this.radius = 60; // Slightly larger for image
         this.color = { r: 50, g: 50, b: 60 };
         this.fillLevel = 0;
         this.maxFill = 1000;
         this.uiMeter = document.getElementById('pot-fill');
         this.liquidPhase = 0;
+
+        this.image = new Image();
+        this.image.src = 'Resources/potion_empty.png';
+        this.imageLoaded = false;
+        this.image.onload = () => { this.imageLoaded = true; };
     }
 
     addHoney(color, amount) {
@@ -181,55 +186,62 @@ class Pot {
         ctx.save();
         ctx.translate(this.x, this.y);
 
-        // Pot Exterior (Dark Iron/Brass)
-        ctx.beginPath();
-        ctx.arc(0, 0, this.radius + 5, 0, Math.PI * 2);
-        ctx.fillStyle = '#1a1a1a';
-        ctx.fill();
+        const w = 140; // Image width
+        const h = 140; // Image height
+        const imgX = -w / 2;
+        const imgY = -h / 2;
 
-        // Gold Rim
-        ctx.beginPath();
-        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-        ctx.lineWidth = 6;
-        ctx.strokeStyle = '#d4af37';
-        ctx.stroke();
-
-        // Inner Shadow
-        ctx.beginPath();
-        ctx.arc(0, 0, this.radius - 3, 0, Math.PI * 2);
-        ctx.fillStyle = '#0a0a0a';
-        ctx.fill();
-
-        // Liquid with slight wave
-        if (this.fillLevel > 0) {
+        if (this.imageLoaded) {
+            // 1. Draw Liquid
+            ctx.save();
             ctx.beginPath();
-            const fillRatio = Math.min(this.fillLevel / (this.maxFill * 0.8), 1); // Cap visual fill
-            const liquidRadius = (this.radius - 6) * (0.2 + 0.8 * fillRatio);
+            // Match the bottle's round bottom shape (adjusted for transparency)
+            // Shifted down and left more
+            ctx.arc(-4, 25, 26, 0, Math.PI * 2);
+            ctx.clip();
 
-            ctx.arc(0, 0, Math.max(0, liquidRadius), 0, Math.PI * 2);
+            // Calculate liquid height
+            const fillRatio = Math.min(this.fillLevel / this.maxFill, 1);
+            const liquidHeight = 90 * fillRatio;
+            const liquidY = 60 - liquidHeight; // Start from bottom
 
-            // Dynamic fluid color
-            const c = this.color;
-            const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, liquidRadius);
-            grad.addColorStop(0, Utils.rgbToCss(Math.min(255, c.r * 1.5), Math.min(255, c.g * 1.5), Math.min(255, c.b * 1.5)));
-            grad.addColorStop(0.8, Utils.rgbToCss(c.r, c.g, c.b));
-            grad.addColorStop(1, Utils.rgbToCss(c.r * 0.7, c.g * 0.7, c.b * 0.7));
+            if (fillRatio > 0) {
+                // Fluid color
+                const c = this.color;
+                // Make liquid slightly glowing
+                ctx.fillStyle = Utils.rgbToCss(c.r, c.g, c.b, 0.9);
 
-            ctx.fillStyle = grad;
-            ctx.fill();
+                // Draw Rect for fill
+                ctx.fillRect(-50, liquidY, 100, liquidHeight + 10);
 
-            // Swirl/Highlight
-            ctx.rotate(this.liquidPhase * 0.2);
-            ctx.beginPath();
-            ctx.arc(liquidRadius * 0.4, 0, liquidRadius * 0.2, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255,255,255,0.1)';
-            ctx.fill();
+                // Top surface wave
+                ctx.beginPath();
+                ctx.moveTo(-50, liquidY);
+                for (let ix = -50; ix <= 50; ix += 5) {
+                    const wave = Math.sin(ix * 0.1 + this.liquidPhase * 3) * 3;
+                    ctx.lineTo(ix, liquidY + wave);
+                }
+                ctx.lineTo(50, 70);
+                ctx.lineTo(-50, 70);
+                ctx.fill();
+            }
+            ctx.restore();
+
+            // 2. Draw Bottle Image (Screen Blend to keep highlights and transparency)
+            ctx.save();
+            ctx.globalCompositeOperation = 'screen';
+            ctx.drawImage(this.image, imgX, imgY, w, h);
+            ctx.restore();
+
+        } else {
+            // Fallback
+            ctx.fillStyle = '#444';
+            ctx.beginPath(); ctx.arc(0, 0, 40, 0, Math.PI * 2); ctx.fill();
         }
 
         ctx.restore();
     }
 }
-
 /* Ant */
 class Ant {
     constructor(x, y, game) {
@@ -238,7 +250,7 @@ class Ant {
         this.game = game;
 
         this.angle = Math.random() * Math.PI * 2;
-        this.speed = 50;
+        this.speed = 70; // Speed 0.7x (of 100)
         this.turnSpeed = 3.0;
 
         this.state = 'IDLE';
@@ -248,7 +260,7 @@ class Ant {
         this.carriedHoney = 0;
         this.carriedColor = { r: 255, g: 255, b: 255 };
 
-        this.size = 7;
+        this.size = 3.5; // Size 1/2
         this.wobblePhase = Math.random() * 10;
         this.legCycle = 0;
     }
@@ -269,8 +281,12 @@ class Ant {
         }
 
         if (this.state !== 'EAT' && this.state !== 'DEPOSIT') {
-            this.x += Math.cos(this.angle) * this.speed * dt;
-            this.y += Math.sin(this.angle) * this.speed * dt;
+            // Speed reduction based on load (Max 1/2 speed at full capacity)
+            const loadRatio = this.carriedHoney / this.maxCapacity;
+            const currentSpeed = this.speed * (1 - loadRatio * 0.5);
+
+            this.x += Math.cos(this.angle) * currentSpeed * dt;
+            this.y += Math.sin(this.angle) * currentSpeed * dt;
         }
     }
 
@@ -304,7 +320,7 @@ class Ant {
             this.target = null;
             return;
         }
-        const rate = 15 * dt;
+        const rate = 7.5 * dt; // Eat speed 1/2
         if (this.target.consume(rate)) {
             const oldAmount = this.carriedHoney;
             this.carriedHoney += rate;
@@ -334,7 +350,7 @@ class Ant {
     }
 
     updateDeposit(dt) {
-        const rate = 20 * dt;
+        const rate = 10 * dt; // Deposit speed 1/2
         this.carriedHoney -= rate;
         this.game.pot.addHoney(this.carriedColor, rate);
 
@@ -395,19 +411,17 @@ class Ant {
         ctx.lineWidth = 1.5;
 
         for (let i = 0; i < 3; i++) {
-            const side = 1;
             const yOffset = -4 + i * 5; // Leg spacing
-            const legLen1 = 2;
+            const legLen1 = 2; // Cute short legs
             const phase = this.legCycle + i * 2;
-            // Front and Middle legs (i < 2) point forward (-1), Hind legs point back (1)
-            const dir = (i < 2) ? -1 : 1;
+            const dir = (i < 2) ? -1 : 1; // Front & Middle forward
 
             // Left Leg
             let angle = Math.sin(phase) * 0.3 - 0.3; // Swing
             let kneeX = -4 - Math.cos(angle) * legLen1;
             let kneeY = yOffset + Math.sin(angle) * legLen1;
-            let footX = kneeX - 3; // Keep sticking out
-            let footY = kneeY + 3 * dir; // Flip Y offset
+            let footX = kneeX - 3;
+            let footY = kneeY + 3 * dir;
 
             ctx.beginPath();
             ctx.moveTo(-3, yOffset);
@@ -452,7 +466,7 @@ class Ant {
         ctx.beginPath(); ctx.moveTo(2, -13); ctx.lineTo(1, -16); ctx.lineTo(0, -13); ctx.fill();
 
         // Abdomen (The Jewel)
-        const abSize = 8 + (this.carriedHoney / this.maxCapacity) * 6;
+        const abSize = 8 + (this.carriedHoney / this.maxCapacity) * 12;
         const abY = 8 + abSize * 0.6;
 
         // Glassy effect
