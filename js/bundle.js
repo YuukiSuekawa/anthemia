@@ -33,6 +33,10 @@ class Utils {
             b: (c1.b * w1 + c2.b * w2) / totalWeight
         };
     }
+
+    static lerp(start, end, t) {
+        return start * (1 - t) + end * t;
+    }
 }
 
 /* Particle System */
@@ -181,21 +185,16 @@ class Pot {
     triggerCollection() {
         this.isCollecting = true;
 
-        // Visual effect: Flash? Particles?
-        // For now, simple reset with a delay and callback to game
+        // Spawn Flying Potion Animation
+        if (window.game) window.game.spawnFlyingPotion(this.color);
 
-        // Notify game
-        if (window.game) window.game.collectPotion();
-
-        // Animate Reset (Simple Fade/Drain for now)
-        // Ideally we would spawn a "flying potion" here
-
+        // Reset Logic
         setTimeout(() => {
             this.fillLevel = 0;
             this.color = { r: 50, g: 50, b: 60 }; // Reset color
             this.isCollecting = false;
             this.updateUI();
-        }, 1000); // 1 second delay to show "Full" state
+        }, 1000);
     }
 
     getEntranceLocation() {
@@ -746,7 +745,6 @@ class Game {
 
         this.honeys.forEach(honey => honey.draw(this.ctx));
         this.pot.draw(this.ctx);
-        this.ants.forEach(ant => ant.draw(this.ctx));
         this.ants.forEach(ant => ant.draw(this.ctx));
         this.particles.draw(this.ctx);
         this.drawFlyingPotions(this.ctx);
