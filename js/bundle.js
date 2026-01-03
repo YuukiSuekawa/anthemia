@@ -151,7 +151,7 @@ class Pot {
     constructor(x, y) {
         this.x = x;
         this.y = y;
-        this.radius = 60; // Slightly larger for image
+        this.radius = 120; // Doubled collision radius
         this.color = { r: 50, g: 50, b: 60 };
         this.fillLevel = 0;
         this.maxFill = 1000;
@@ -170,6 +170,12 @@ class Pot {
         this.updateUI();
     }
 
+    getEntranceLocation() {
+        // Offset Y to find the bottle mouth (Top of neck)
+        // Shifted to upper right as requested
+        return { x: this.x + 30, y: this.y - 95 };
+    }
+
     updateUI() {
         if (this.uiMeter) {
             const percentage = Math.min((this.fillLevel / this.maxFill) * 100, 100);
@@ -186,8 +192,9 @@ class Pot {
         ctx.save();
         ctx.translate(this.x, this.y);
 
-        const w = 140; // Image width
-        const h = 140; // Image height
+        // Doubled Size
+        const w = 280;
+        const h = 280;
         const imgX = -w / 2;
         const imgY = -h / 2;
 
@@ -195,15 +202,17 @@ class Pot {
             // 1. Draw Liquid
             ctx.save();
             ctx.beginPath();
-            // Match the bottle's round bottom shape (adjusted for transparency)
-            // Shifted down and left more
-            ctx.arc(-4, 25, 26, 0, Math.PI * 2);
+            // Match the bottle's round bottom shape (adjusted for 2x size)
+            // Original: (-4, 25, 26) -> New: (-8, 50, 52)
+            ctx.arc(-8, 50, 52, 0, Math.PI * 2);
             ctx.clip();
 
             // Calculate liquid height
+            // Bottle bulb diameter is ~104px (Radius 52)
+            // Sync visual height to fill ratio strictly
             const fillRatio = Math.min(this.fillLevel / this.maxFill, 1);
-            const liquidHeight = 90 * fillRatio;
-            const liquidY = 60 - liquidHeight; // Start from bottom
+            const currentHeight = 104 * fillRatio;
+            const liquidY = 102 - currentHeight; // Bottom of circle (50 + 52) = 102
 
             if (fillRatio > 0) {
                 // Fluid color
@@ -212,17 +221,17 @@ class Pot {
                 ctx.fillStyle = Utils.rgbToCss(c.r, c.g, c.b, 0.9);
 
                 // Draw Rect for fill
-                ctx.fillRect(-50, liquidY, 100, liquidHeight + 10);
+                ctx.fillRect(-100, liquidY, 200, currentHeight + 20);
 
                 // Top surface wave
                 ctx.beginPath();
-                ctx.moveTo(-50, liquidY);
-                for (let ix = -50; ix <= 50; ix += 5) {
-                    const wave = Math.sin(ix * 0.1 + this.liquidPhase * 3) * 3;
+                ctx.moveTo(-100, liquidY);
+                for (let ix = -100; ix <= 100; ix += 10) {
+                    const wave = Math.sin(ix * 0.05 + this.liquidPhase * 3) * 6; // Doubled wave amp
                     ctx.lineTo(ix, liquidY + wave);
                 }
-                ctx.lineTo(50, 70);
-                ctx.lineTo(-50, 70);
+                ctx.lineTo(100, 140); // Doubled from 70
+                ctx.lineTo(-100, 140);
                 ctx.fill();
             }
             ctx.restore();
@@ -341,10 +350,18 @@ class Ant {
 
     updateReturn(dt) {
         const pot = this.game.pot;
-        const angleToPot = Math.atan2(pot.y - this.y, pot.x - this.x);
+        const entrance = pot.getEntranceLocation();
+
+        // Target the entrance, with some randomness to avoid stacking
+        const targetX = entrance.x + Math.sin(this.wobblePhase) * 10;
+        const targetY = entrance.y + Math.cos(this.wobblePhase) * 5;
+
+        const angleToPot = Math.atan2(targetY - this.y, targetX - this.x);
         this.smoothTurn(angleToPot, dt);
-        const dist = Utils.distance(this.x, this.y, pot.x, pot.y);
-        if (dist < pot.radius + 5) {
+
+        const dist = Utils.distance(this.x, this.y, targetX, targetY);
+        // Much closer distance threshold for the small entrance
+        if (dist < 15) {
             this.state = 'DEPOSIT';
         }
     }
