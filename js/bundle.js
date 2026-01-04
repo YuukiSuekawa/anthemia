@@ -123,8 +123,13 @@ class Honey {
         ctx.translate(this.x, this.y);
 
         // Jelly Wobble effect
-        const scaleX = 1 + Math.sin(this.wobbleTime) * 0.6 * this.wobbleIntensity;
-        const scaleY = 1 + Math.cos(this.wobbleTime) * 0.6 * this.wobbleIntensity;
+        // Dampen effect as it gets bigger (mass increases -> less wobble)
+        const baseWobble = 0.6;
+        const sizeDampener = Math.max(0.2, 50 / (50 + this.amount)); // decay as amount grows
+        const amplitude = baseWobble * sizeDampener * this.wobbleIntensity;
+
+        const scaleX = 1 + Math.sin(this.wobbleTime) * amplitude;
+        const scaleY = 1 + Math.cos(this.wobbleTime) * amplitude;
         ctx.scale(scaleX, scaleY);
 
         this.radius = Math.max(0, this.radius);
@@ -786,6 +791,11 @@ class Game {
                     this.restoreButtonState(btn); // Clean up locks
                     this.animateGemUnlock(btn);
                     btn.classList.remove('locked');
+
+                    // Spawn 5 new ants from nest as reward
+                    for (let i = 0; i < 5; i++) {
+                        this.spawnAnt(true);
+                    }
                 }
             } else {
                 // Not unlocked yet
@@ -1179,6 +1189,77 @@ class Game {
 
         // Spawn particles (always spawn for feedback)
         this.particles.spawn(x, y, clickColorRgb, 10, 4);
+
+        // Chain Reaction: Check if the modified/new honey now overlaps others
+        // We identify the active honey (either merged or new)
+        let activeHoney = merged ? this.honeys.find(h => {
+            // Find the honey we just clicked (not perfect but valid given merge logic)
+            return Utils.distance(x, y, h.x, h.y) < h.radius + 20;
+        }) : this.honeys[this.honeys.length - 1];
+
+        if (activeHoney) {
+            this.absorbNeighbors(activeHoney);
+        }
+    }
+
+    absorbNeighbors(source) {
+        let changed = true;
+        let loops = 0;
+        while (changed && loops < 20) {
+            changed = false;
+            loops++;
+
+            source.update(0); // Update radius
+
+            for (let i = 0; i < this.honeys.length; i++) {
+                const other = this.honeys[i];
+                if (other === source) continue;
+
+                const dist = Utils.distance(source.x, source.y, other.x, other.y);
+
+                if (dist < source.radius + other.radius) {
+                    // Overlap detected
+                    // Determine who absorbs whom
+                    if (other.amount > source.amount) {
+                        // Other is bigger: Absorb Source into Other
+                        const totalAmount = other.amount + source.amount;
+                        other.color = Utils.mixColors(other.color, other.amount, source.color, source.amount);
+                        other.amount = totalAmount;
+                        other.wobbleTime = 0;
+                        other.wobbleIntensity = 2.0;
+
+                        // Remove source (active)
+                        const sourceIndex = this.honeys.indexOf(source);
+                        if (sourceIndex > -1) {
+                            this.honeys.splice(sourceIndex, 1);
+                        }
+
+                        // Particles at source position (being absorbed)
+                        this.particles.spawn(source.x, source.y, other.color, 5, 2);
+
+                        // Recursively handle the winner
+                        this.absorbNeighbors(other);
+                        return; // Stop processing this dead source
+                    } else {
+                        // Source is bigger or equal: Absorb Other into Source
+                        const totalAmount = source.amount + other.amount;
+                        source.color = Utils.mixColors(source.color, source.amount, other.color, other.amount);
+                        source.amount = totalAmount;
+                        source.wobbleTime = 0;
+                        source.wobbleIntensity = 2.0;
+
+                        // Remove other
+                        this.honeys.splice(i, 1);
+                        i--; // Adjust index
+
+                        // Particles at other position
+                        this.particles.spawn(other.x, other.y, source.color, 5, 2);
+
+                        changed = true;
+                    }
+                }
+            }
+        }
     }
 
     start() {
@@ -1221,9 +1302,7 @@ class Game {
         // Let's layer: Honey -> Pot (Back) -> Ants -> Particles
         // Actually Pot should be behind everything except Honey maybe?
 
-        this.honeys.forEach(honey => honey.draw(this.ctx));
-
-        // Draw Nest
+        // Draw Nest (Background layer)
         if (this.nestImageLoaded) {
             const nestSize = 100;
             this.ctx.drawImage(
@@ -1240,6 +1319,9 @@ class Game {
             this.ctx.arc(this.nestPosition.x, this.nestPosition.y, 30, 0, Math.PI * 2);
             this.ctx.fill();
         }
+
+        // Draw Honey (over nest)
+        this.honeys.forEach(honey => honey.draw(this.ctx));
 
         this.pot.draw(this.ctx);
         this.ants.forEach(ant => ant.draw(this.ctx));
