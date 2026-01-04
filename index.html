@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Coloring Ants - Living Jewels</title>
+    <title>ANTHEMIA - The Living Catalyst</title>
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,8 +18,7 @@
         <canvas id="game-canvas"></canvas>
         <div id="title-screen">
             <header>
-                <h1>Coloring Ants</h1>
-                <p class="subtitle">The Art of Luring</p>
+                <img src="Resources/ANTHEMIA-title.png" alt="ANTHEMIA" id="title-logo">
             </header>
             <div id="start-prompt">Touch Start</div>
         </div>
@@ -51,6 +50,10 @@
             </div>
 
             <div id="controls">
+                <div id="ant-counter">
+                    <span class="label">Ants</span>
+                    <span id="ant-count-display">0</span>
+                </div>
                 <div class="palette">
                     <button class="color-btn" data-color="#FF3333" data-gem="Ruby" data-unlock-threshold="0">
                         <img src="Resources/Ruby.PNG" alt="ルビー">

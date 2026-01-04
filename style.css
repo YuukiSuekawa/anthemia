@@ -109,6 +109,9 @@ h1 {
     backdrop-filter: blur(8px);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 
+    margin-bottom: 40px;
+    /* Raise above counters */
+
     pointer-events: auto;
 
     /* Horizontal Scroll Logic */
@@ -140,6 +143,11 @@ h1 {
     border: 1px solid var(--glass-border);
     backdrop-filter: blur(8px);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+
+    margin-bottom: 40px;
+    /* Raise above counters */
+
+    pointer-events: auto;
 
     /* Horizontal Scroll Logic */
     overflow-x: auto;
@@ -199,12 +207,12 @@ h1 {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    object-position: center bottom;
+    object-position: center;
     border-radius: 50%;
     pointer-events: none;
     /* Prevent image from blocking clicks */
     transform: scale(1.1);
-    transform-origin: center bottom;
+    transform-origin: center;
 }
 
 .color-btn:hover {
@@ -239,6 +247,7 @@ h1 {
 }
 
 .pot-status {
+    display: none !important;
     position: absolute;
     left: 40px;
     bottom: 0;
@@ -280,18 +289,56 @@ h1 {
 }
 
 #potion-counter {
-    position: fixed;
-    bottom: 30px;
-    right: 30px;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
     background: var(--glass-bg);
-    padding: 10px 20px;
-    border-radius: 16px;
+    padding: 0 20px;
+    height: 80px;
+    min-width: 150px;
+    justify-content: center;
+    border-radius: 20px;
     border: 1px solid var(--glass-border);
     backdrop-filter: blur(8px);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
     display: flex;
     align-items: center;
     gap: 15px;
+    box-sizing: border-box;
+}
+
+#ant-counter {
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+    background: var(--glass-bg);
+    padding: 0 20px;
+    height: 80px;
+    min-width: 150px;
+    justify-content: center;
+    border-radius: 20px;
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-sizing: border-box;
+}
+
+#ant-counter .label {
+    font-family: 'Cinzel', serif;
+    color: var(--gold);
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+}
+
+#ant-count-display {
+    font-family: 'Cinzel', serif;
+    color: #fff;
+    font-size: 1.2rem;
+    font-weight: bold;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 }
 
 #potion-icon {
@@ -381,23 +428,44 @@ h1 {
 }
 
 /* --- Title Screen --- */
+/* --- Title Screen --- */
 #title-screen {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 200;
+    z-index: 10000;
     /* Above UI layer */
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    /* justify-content handled in media queries */
     align-items: center;
-    background-color: rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(8px);
+
+    background-color: #000;
+    /* Fallback */
+    overflow: hidden;
+    /* Crop scaled background */
+
     transition: opacity 0.5s ease-out, visibility 0.5s;
     pointer-events: auto;
     /* Catch clicks */
+}
+
+/* Background Layer with Scale to hide Watermark */
+#title-screen::before {
+    content: "";
+    position: absolute;
+    top: -5%;
+    left: -5%;
+    width: 110%;
+    height: 110%;
+    z-index: -1;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: brightness(0.8);
+    /* Slight dim for text readability */
 }
 
 #title-screen.hidden {
@@ -406,10 +474,48 @@ h1 {
     pointer-events: none;
 }
 
+#title-logo {
+    max-width: 80vw;
+    height: auto;
+    filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.5));
+    position: relative;
+    /* Ensure above bg */
+    z-index: 1;
+}
+
 #title-screen header {
-    margin-bottom: 60px;
-    /* Scale up slightly for title screen impact */
-    transform: scale(1.2);
+    margin: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    /* Ensure above bg */
+    z-index: 1;
+}
+
+/* Orientation: Portrait (Vertical) */
+@media (orientation: portrait) {
+    #title-screen {
+        justify-content: flex-start;
+        padding-top: 15vh;
+    }
+
+    #title-screen::before {
+        background-image: url('Resources/anthemia_titlebg_small_ants_1767525035647.png');
+    }
+}
+
+/* Orientation: Landscape (Horizontal) */
+@media (orientation: landscape) {
+    #title-screen {
+        justify-content: flex-start;
+        padding-top: 10vh;
+    }
+
+    #title-screen::before {
+        background-image: url('Resources/anthemia_titlebg_small_ants_1767525035647.png');
+    }
 }
 
 #start-prompt {
@@ -421,6 +527,8 @@ h1 {
     text-shadow: 0 0 10px var(--gold-shine);
     animation: promptBlink 2s infinite ease-in-out;
     cursor: pointer;
+    margin-top: 20px;
+    /* Space from title */
 }
 
 @keyframes promptBlink {
@@ -520,6 +628,7 @@ h1 {
 /* Slider */
 input[type=range] {
     -webkit-appearance: none;
+    appearance: none;
     width: 100%;
     height: 6px;
     background: #444;
@@ -529,6 +638,7 @@ input[type=range] {
 
 input[type=range]::-webkit-slider-thumb {
     -webkit-appearance: none;
+    appearance: none;
     width: 20px;
     height: 20px;
     background: var(--gold);

@@ -678,11 +678,13 @@ class Ant {
         const width = abSize * 0.9;
         const height = abSize;
 
-        // Base transparency based on fullness
-        const fillAlpha = this.carriedHoney > 0 ? 0.6 : 0.1; // Slightly more opaque center
-        const edgeAlpha = this.carriedHoney > 0 ? 0.8 : 0.3; // More transparent edge
+        // Determine transparency and color intensity
+        const isFull = this.carriedHoney > 0;
+        const fillAlpha = isFull ? 0.6 : 0.1; // More transparent when empty (glassy)
+        const edgeAlpha = isFull ? 0.8 : 0.3;
 
-        const baseColor = this.carriedHoney > 0 ? c : { r: 150, g: 150, b: 160 };
+        // Default to Gray (Glassy) when empty
+        const baseColor = isFull ? c : { r: 150, g: 150, b: 160 };
 
         // 1. Inner Glow / Refraction (Bottom)
         const innerGrad = ctx.createRadialGradient(0, abY + height * 0.4, 1, 0, abY, height);
@@ -695,12 +697,48 @@ class Ant {
         ctx.ellipse(0, abY, width, height, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // 2. Specular Highlight (Top Reflection)
+        // 1.5. Abdomen Segments (The Pattern)
+        // Draw distinct brown stripes (tergites) that stretch/separate
+        ctx.strokeStyle = 'rgba(60, 30, 10, 0.5)'; // Dark Brown stripes
+        ctx.lineWidth = isFull ? 1.0 : 1.5; // Thinner when stretched
         ctx.beginPath();
-        ctx.ellipse(width * 0.3, abY - height * 0.4, width * 0.25, height * 0.15, -0.5, 0, Math.PI * 2);
-        const shineGrad = ctx.createLinearGradient(0, abY - height * 0.6, 0, abY - height * 0.2);
+        // Stripe 1
+        ctx.moveTo(-width * 0.7, abY - height * 0.2);
+        ctx.quadraticCurveTo(0, abY - height * 0.1, width * 0.7, abY - height * 0.2);
+        // Stripe 2
+        ctx.moveTo(-width * 0.8, abY + height * 0.1);
+        ctx.quadraticCurveTo(0, abY + height * 0.2, width * 0.8, abY + height * 0.1);
+        // Stripe 3
+        ctx.moveTo(-width * 0.6, abY + height * 0.4);
+        ctx.quadraticCurveTo(0, abY + height * 0.5, width * 0.6, abY + height * 0.4);
+        ctx.stroke();
+
+        // 2. Specular Highlight (Dynamic World Lighting)
+        // We want the light to come from Top-Left of SCREEN (-135deg), regardless of ant rotation
+        const lightWorldAngle = -Math.PI * 0.75; // -135 degrees
+        const currentRotation = this.angle + Math.PI / 2;
+        const relativeAngle = lightWorldAngle - currentRotation;
+
+        // Position highlight on the 'surface' facing the light
+        // Abdomen center is (0, abY)
+        const hlDistX = width * 0.35;
+        const hlDistY = height * 0.35;
+        const hlX = Math.cos(relativeAngle) * hlDistX;
+        const hlY = abY + Math.sin(relativeAngle) * hlDistY;
+
+        ctx.beginPath();
+        // Rotate ellipse to match light direction + 90deg for perpendicular glint
+        ctx.ellipse(hlX, hlY, width * 0.25, height * 0.15, relativeAngle + Math.PI / 2, 0, Math.PI * 2);
+
+        // Gradient aligned with light
+        // Start from highlight center, go outwards away from light? 
+        // Or just fixed linear gradient in local space? 
+        // Let's use a radial for the shine to keep it simple and effective
+        const shineGrad = ctx.createRadialGradient(hlX, hlY, 0, hlX, hlY, width * 0.4);
         shineGrad.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+        shineGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.4)');
         shineGrad.addColorStop(1, 'rgba(255, 255, 255, 0.0)');
+
         ctx.fillStyle = shineGrad;
         ctx.fill();
 
@@ -739,6 +777,7 @@ class Game {
         this.scoreDisplay = document.getElementById('score-display');
         this.flyingPotions = []; // List of active flying potions animations
         this.potionIcon = document.getElementById('potion-icon'); // Target for animation
+        this.antCountDisplay = document.getElementById('ant-count-display');
 
         // Sound Manager
         this.soundManager = new SoundManager();
@@ -768,6 +807,7 @@ class Game {
         this.isPaused = false;
         this.setupTitleScreen();
         this.setupSettingsUI();
+        this.loadProgress(); // Restore saved data
         this.checkUnlock();
     }
 
@@ -792,10 +832,6 @@ class Game {
                     this.animateGemUnlock(btn);
                     btn.classList.remove('locked');
 
-                    // Spawn 5 new ants from nest as reward
-                    for (let i = 0; i < 5; i++) {
-                        this.spawnAnt(true);
-                    }
                 }
             } else {
                 // Not unlocked yet
@@ -1008,9 +1044,12 @@ class Game {
         }
 
         // Initial Spawns
-        for (let i = 0; i < 20; i++) {
+        const initialCount = 20 + (this.potionsCollected * 5);
+        this.ants = []; // Clear safety
+        for (let i = 0; i < initialCount; i++) {
             this.spawnAnt(true); // true = start in nest
         }
+        this.updateAntCount();
     }
 
     init() {
@@ -1022,6 +1061,8 @@ class Game {
     collectPotion() {
         this.soundManager.playBottleSound();
         this.potionsCollected++;
+        this.saveProgress(); // Save data
+
         if (this.scoreDisplay) {
             this.scoreDisplay.textContent = this.potionsCollected;
 
@@ -1038,6 +1079,24 @@ class Game {
         // this.spawnFlyingPotion(this.pot.color); // Already called in pot.triggerCollection but logic is split.
         // Actually collectPotion is called BY flying potion arrival in current logic?
         // Let's check updateFlyingPotions. Yes.
+        // Spawn 5 new ants from nest as reward for completion
+        for (let i = 0; i < 5; i++) {
+            this.spawnAnt(true);
+        }
+    }
+
+    saveProgress() {
+        localStorage.setItem('coloringAnts_score', this.potionsCollected);
+    }
+
+    loadProgress() {
+        const savedScore = localStorage.getItem('coloringAnts_score');
+        if (savedScore !== null) {
+            this.potionsCollected = parseInt(savedScore, 10);
+            if (this.scoreDisplay) {
+                this.scoreDisplay.textContent = this.potionsCollected;
+            }
+        }
     }
 
     spawnFlyingPotion(color) {
@@ -1131,6 +1190,13 @@ class Game {
             }
         }
         this.ants.push(new Ant(x, y, this, startInNest));
+        this.updateAntCount();
+    }
+
+    updateAntCount() {
+        if (this.antCountDisplay) {
+            this.antCountDisplay.textContent = this.ants.length;
+        }
     }
 
     setSelectedColor(color) {
@@ -1320,10 +1386,12 @@ class Game {
             this.ctx.fill();
         }
 
-        // Draw Honey (over nest)
+        // Draw Honey (over nest, under pot)
         this.honeys.forEach(honey => honey.draw(this.ctx));
 
+        // Draw Pot (over honey)
         this.pot.draw(this.ctx);
+
         this.ants.forEach(ant => ant.draw(this.ctx));
         this.particles.draw(this.ctx);
         this.drawFlyingPotions(this.ctx);
