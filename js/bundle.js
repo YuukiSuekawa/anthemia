@@ -539,8 +539,19 @@ class Ant {
         if (this.carriedHoney <= 0) {
             this.carriedHoney = 0;
             this.carriedColor = { r: 255, g: 255, b: 255 };
-            this.state = 'TO_NEST'; // Return to nest after depositing
-            this.angle += Math.PI;
+
+            // Look for more honey near the pot before choosing to go home
+            // Expand search range slightly since we are at the pot center
+            const nearestHoney = this.findNearestHoney(/* expanded range if needed, default is 250 */);
+
+            if (nearestHoney) {
+                this.target = nearestHoney;
+                this.state = 'SEEK';
+                this.angle += Math.PI; // Turn around roughly
+            } else {
+                this.state = 'TO_NEST'; // Return to nest if no work found
+                this.angle += Math.PI;
+            }
         }
     }
 
