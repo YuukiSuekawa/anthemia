@@ -697,7 +697,9 @@ class Game {
 
     setupTitleScreen() {
         const titleScreen = document.getElementById('title-screen');
-        const startHandler = () => {
+        const startHandler = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             if (this.gameState === 'TITLE') {
                 this.startGame();
             }
