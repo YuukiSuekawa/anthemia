@@ -278,18 +278,27 @@ class Pot {
         ctx.restore();
     }
 }
+
 /* Ant */
 class Ant {
-    constructor(x, y, game) {
-        this.x = x;
-        this.y = y;
+    constructor(x, y, game, startInNest = false) {
         this.game = game;
+
+        if (startInNest) {
+            this.x = game.nestPosition.x;
+            this.y = game.nestPosition.y;
+            this.state = 'IN_NEST';
+            this.nestTimer = Utils.randomRange(1, 3); // Random wait time in nest
+        } else {
+            this.x = x;
+            this.y = y;
+            this.state = 'IDLE';
+            this.nestTimer = 0;
+        }
 
         this.angle = Math.random() * Math.PI * 2;
         this.speed = 70; // Speed 0.7x (of 100)
         this.turnSpeed = 3.0;
-
-        this.state = 'IDLE';
         this.target = null;
 
         this.maxCapacity = 10;
@@ -309,20 +318,58 @@ class Ant {
         }
 
         switch (this.state) {
+            case 'IN_NEST': this.updateInNest(dt); break;
+            case 'EXITING_NEST': this.updateExitingNest(dt); break;
             case 'IDLE': this.updateIdle(dt); break;
             case 'SEEK': this.updateSeek(dt); break;
             case 'EAT': this.updateEat(dt); break;
             case 'RETURN': this.updateReturn(dt); break;
             case 'DEPOSIT': this.updateDeposit(dt); break;
+            case 'TO_NEST': this.updateToNest(dt); break;
         }
 
-        if (this.state !== 'EAT' && this.state !== 'DEPOSIT') {
+        if (this.state !== 'EAT' && this.state !== 'DEPOSIT' && this.state !== 'IN_NEST') {
             // Speed reduction based on load (Max 1/2 speed at full capacity)
             const loadRatio = this.carriedHoney / this.maxCapacity;
             const currentSpeed = this.speed * (1 - loadRatio * 0.5);
 
             this.x += Math.cos(this.angle) * currentSpeed * dt;
             this.y += Math.sin(this.angle) * currentSpeed * dt;
+        }
+    }
+
+
+    updateInNest(dt) {
+        // Wait in nest
+        this.nestTimer -= dt;
+        if (this.nestTimer <= 0) {
+            this.state = 'EXITING_NEST';
+            // Set angle to move away from nest (downward)
+            this.angle = Math.PI / 2 + (Math.random() - 0.5) * Math.PI / 3;
+        }
+    }
+
+    updateExitingNest(dt) {
+        // Move away from nest
+        const dist = Utils.distance(this.x, this.y, this.game.nestPosition.x, this.game.nestPosition.y);
+        if (dist > 50) {
+            this.state = 'IDLE';
+        }
+    }
+
+    updateToNest(dt) {
+        // Move toward nest
+        const nest = this.game.nestPosition;
+        const angleToNest = Math.atan2(nest.y - this.y, nest.x - this.x);
+        this.smoothTurn(angleToNest, dt);
+
+        const dist = Utils.distance(this.x, this.y, nest.x, nest.y);
+        if (dist < 20) {
+            // Entered nest
+            this.x = nest.x;
+            this.y = nest.y;
+            this.state = 'IN_NEST';
+            this.nestTimer = Utils.randomRange(2, 5); // Wait before exiting again
         }
     }
 
@@ -338,7 +385,7 @@ class Ant {
 
     updateSeek(dt) {
         if (!this.target || this.target.amount <= 0) {
-            this.state = 'IDLE';
+            this.state = this.carriedHoney > 0 ? 'RETURN' : 'IDLE';
             this.target = null;
             return;
         }
@@ -406,7 +453,7 @@ class Ant {
         if (this.carriedHoney <= 0) {
             this.carriedHoney = 0;
             this.carriedColor = { r: 255, g: 255, b: 255 };
-            this.state = 'IDLE';
+            this.state = 'TO_NEST'; // Return to nest after depositing
             this.angle += Math.PI;
         }
     }
@@ -441,6 +488,8 @@ class Ant {
     }
 
     draw(ctx) {
+        if (this.state === 'IN_NEST') return; // Don't draw if inside
+
         ctx.save();
         ctx.translate(this.x, this.y);
         ctx.rotate(this.angle + Math.PI / 2); // Facing Up
@@ -448,6 +497,15 @@ class Ant {
         // Scale down slightly to fit new graphics
         const s = this.size / 6;
         ctx.scale(s, s);
+
+        // Scale down if entering/exiting nest
+        if (this.state === 'TO_NEST' || this.state === 'EXITING_NEST') {
+            const dist = Utils.distance(this.x, this.y, window.game.nestPosition.x, window.game.nestPosition.y);
+            if (dist < 30) {
+                const scale = Math.max(0, dist / 30);
+                ctx.scale(scale, scale);
+            }
+        }
 
         // Legs (Jointed)
         ctx.strokeStyle = '#444'; // Dark legs
@@ -580,7 +638,20 @@ class Game {
         this.flyingPotions = []; // List of active flying potions animations
         this.potionIcon = document.getElementById('potion-icon'); // Target for animation
 
-        this.init();
+        // Load Nest Image
+        this.nestImage = new Image();
+        this.nestImage.src = "Resources/nest_hole2.png?v=" + new Date().getTime();
+        this.nestImageLoaded = false;
+        this.nestImage.onload = () => { this.nestImageLoaded = true; };
+
+        // Nest Configuration
+        this.nestPosition = { x: this.canvas.width / 2, y: 70 }; // Lowered slightly
+
+
+        // Initial Spawns
+        for (let i = 0; i < 20; i++) {
+            this.spawnAnt(true); // true = start in nest
+        }
 
         this.canvas.addEventListener('click', (e) => this.handleClick(e));
         window.addEventListener('resize', () => {
@@ -679,16 +750,23 @@ class Game {
         });
     }
 
-    spawnAnt() {
+    spawnAnt(startInNest = false) {
         let x, y;
-        if (Math.random() < 0.5) {
-            x = Math.random() < 0.5 ? -20 : this.canvas.width + 20;
-            y = Math.random() * this.canvas.height;
+        if (startInNest) {
+            // Spawn from nest
+            x = this.nestPosition.x;
+            y = this.nestPosition.y;
         } else {
-            x = Math.random() * this.canvas.width;
-            y = Math.random() < 0.5 ? -20 : this.canvas.height + 20;
+            // Spawn from screen edges
+            if (Math.random() < 0.5) {
+                x = Math.random() < 0.5 ? -20 : this.canvas.width + 20;
+                y = Math.random() * this.canvas.height;
+            } else {
+                x = Math.random() * this.canvas.width;
+                y = Math.random() < 0.5 ? -20 : this.canvas.height + 20;
+            }
         }
-        this.ants.push(new Ant(x, y, this));
+        this.ants.push(new Ant(x, y, this, startInNest));
     }
 
     setSelectedColor(color) {
@@ -744,6 +822,25 @@ class Game {
         // Actually Pot should be behind everything except Honey maybe?
 
         this.honeys.forEach(honey => honey.draw(this.ctx));
+
+        // Draw Nest
+        if (this.nestImageLoaded) {
+            const nestSize = 100;
+            this.ctx.drawImage(
+                this.nestImage,
+                this.nestPosition.x - nestSize / 2,
+                this.nestPosition.y - nestSize / 2,
+                nestSize,
+                nestSize
+            );
+        } else {
+            // Fallback: simple circle
+            this.ctx.fillStyle = '#3a2a1a';
+            this.ctx.beginPath();
+            this.ctx.arc(this.nestPosition.x, this.nestPosition.y, 30, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+
         this.pot.draw(this.ctx);
         this.ants.forEach(ant => ant.draw(this.ctx));
         this.particles.draw(this.ctx);

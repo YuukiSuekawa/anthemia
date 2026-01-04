@@ -109,43 +109,108 @@ h1 {
     box-shadow: 0 8px 32px 0 rgba(212, 175, 55, 0.1);
 }
 
-.color-btn {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    border: 3px solid rgba(255, 255, 255, 0.1);
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    position: relative;
-    overflow: hidden;
+.palette {
+    display: flex;
+    gap: 15px;
+    padding: 10px 20px;
+    background: var(--glass-bg);
+    border-radius: 20px;
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+
+    /* Horizontal Scroll Logic */
+    overflow-x: auto;
+    white-space: nowrap;
+    max-width: 80vw;
+    /* Cap width */
+    scrollbar-width: thin;
+    /* Firefox */
+    scrollbar-color: rgba(255, 255, 255, 0.5) rgba(255, 255, 255, 0.1);
 }
 
-.color-btn::after {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, transparent 60%);
-    opacity: 0;
-    transform: scale(0.5);
-    transition: opacity 0.3s, transform 0.3s;
+.palette::-webkit-scrollbar {
+    height: 6px;
+    /* Horizontal scrollbar height */
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.palette::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.palette::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 3px;
+    box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.3);
+}
+
+.palette::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.8);
+}
+
+.color-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s, filter 0.2s;
+    flex-shrink: 0;
+    /* Prevent shrinking */
+
+    /* Remove background color, use image instead */
+    background: transparent;
+    padding: 0;
+
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4),
+        0 0 15px rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow: hidden;
+
+    /* Add subtle glow */
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.color-btn img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    pointer-events: none;
+    /* Prevent image from blocking clicks */
 }
 
 .color-btn:hover {
     transform: scale(1.15);
-}
-
-.color-btn:hover::after {
-    opacity: 0.4;
-    transform: scale(1);
+    filter: drop-shadow(0 4px 8px rgba(255, 255, 255, 0.4)) brightness(1.1);
 }
 
 .color-btn.active {
     transform: scale(1.25);
-    border-color: var(--gold-shine);
-    box-shadow: 0 0 20px currentColor;
+    box-shadow: 0 0 20px var(--gold-shine),
+        0 0 30px var(--gold),
+        inset 0 0 15px rgba(255, 255, 255, 0.3);
+    border: 3px solid var(--gold);
+    filter: drop-shadow(0 6px 12px rgba(212, 175, 55, 0.6)) brightness(1.2);
+    animation: gemPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes gemPulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 20px var(--gold-shine),
+            0 0 30px var(--gold),
+            inset 0 0 15px rgba(255, 255, 255, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 30px var(--gold-shine),
+            0 0 40px var(--gold),
+            inset 0 0 20px rgba(255, 255, 255, 0.5);
+    }
 }
 
 .pot-status {
@@ -229,35 +294,59 @@ h1 {
 @media (max-width: 768px) {
     /* Mobile Layout adjustments */
 
+    /* Move Palette to fixed position above status bars */
+    .palette {
+        position: fixed;
+        bottom: 90px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 90%;
+        max-width: 90%;
+        justify-content: flex-start;
+        /* Ensure start alignment for scrolling */
+        background: rgba(255, 255, 255, 0.1);
+        z-index: 101;
+        /* Above other UI */
+    }
+
     /* Move Potion Pot status to bottom-left fixed position */
     .pot-status {
         position: fixed;
         bottom: 20px;
-        left: 20px;
-        padding: 10px 15px;
+        left: 10px;
+        padding: 8px 12px;
         z-index: 100;
-        /* Ensure it doesn't conflict with center controls if any */
+        transform: scale(0.9);
+        transform-origin: bottom left;
     }
 
     /* Adjust Potion Counter to bottom-right fixed position */
     #potion-counter {
         bottom: 20px;
-        right: 20px;
-        padding: 8px 15px;
-        gap: 10px;
+        right: 10px;
+        padding: 5px 12px;
+        gap: 5px;
+        transform: scale(0.9);
+        transform-origin: bottom right;
     }
 
     /* Smaller text/elements on mobile */
     #pot-meter {
-        width: 140px;
+        width: 100px;
+        height: 12px;
+    }
+
+    #pot-label {
+        font-size: 0.7rem;
+        margin-bottom: 4px;
     }
 
     #potion-icon {
-        width: 32px;
-        height: 32px;
+        width: 28px;
+        height: 28px;
     }
 
     #score-display {
-        font-size: 1.5rem;
+        font-size: 1.2rem;
     }
 }
