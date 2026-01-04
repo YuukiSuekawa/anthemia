@@ -68,9 +68,7 @@
         <p>各ボタンをクリックして音を確認してください</p>
 
         <button id="bottleBtn">瓶の音（カランカラン）</button>
-        <button id="rollingBtn">瓶の転がる音（ゴロゴロ）</button>
-        <button id="dropBtn">液体設置音（ぴちょん）</button>
-        <button id="splashBtn">満タン音（ちゃっぽん）</button>
+        <button id="dropBtn">液体設置音（水滴）</button>
 
         <div class="info">
             <p>💡 音が聞こえない場合：</p>
@@ -92,18 +90,8 @@
             soundManager.playBottleSound();
         });
 
-        document.getElementById('rollingBtn').addEventListener('click', () => {
-            console.log('転がる音を再生');
-            soundManager.playRollingSound();
-        });
-
         document.getElementById('dropBtn').addEventListener('click', () => {
-            console.log('液体設置音を再生');
-            soundManager.playDropSound();
-        });
-
-        document.getElementById('splashBtn').addEventListener('click', () => {
-            console.log('満タン音を再生');
+            console.log('液体設置音（水滴）を再生');
             soundManager.playSplashSound();
         });
     </script>

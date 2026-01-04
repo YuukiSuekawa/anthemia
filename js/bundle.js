@@ -677,6 +677,7 @@ class Game {
     }
 
     collectPotion() {
+        this.soundManager.playBottleSound();
         this.potionsCollected++;
         if (this.scoreDisplay) {
             this.scoreDisplay.textContent = this.potionsCollected;
@@ -691,7 +692,7 @@ class Game {
 
     spawnFlyingPotion(color) {
         // Play bottle sound effect
-        this.soundManager.playBottleSound();
+
 
         // Target position (UI icon)
         let tx = this.canvas.width - 50;
@@ -795,7 +796,7 @@ class Game {
         this.honeys.push(new Honey(x, y, this.selectedColor));
 
         // Play drop sound effect
-        this.soundManager.playDropSound();
+        this.soundManager.playSplashSound();
 
         // Spawn particles
         const c = Utils.hexToRgb(this.selectedColor);
