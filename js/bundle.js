@@ -1007,6 +1007,7 @@ class Game {
 
         // Reset Score
         this.potionsCollected = 0;
+        localStorage.setItem('coloringAnts_score', 0);
         if (this.scoreDisplay) {
             this.scoreDisplay.textContent = "0";
         }
