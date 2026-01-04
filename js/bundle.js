@@ -752,6 +752,149 @@ class Game {
         this.isPaused = false;
         this.setupTitleScreen();
         this.setupSettingsUI();
+        this.checkUnlock();
+    }
+
+    checkUnlock() {
+        const btns = Array.from(document.querySelectorAll('.color-btn'));
+        // Ensure they are processed in threshold order
+        btns.sort((a, b) => {
+            return parseInt(a.getAttribute('data-unlock-threshold') || "0") - parseInt(b.getAttribute('data-unlock-threshold') || "0");
+        });
+
+        let nextGoalShown = false;
+
+        btns.forEach(btn => {
+            const threshold = parseInt(btn.getAttribute('data-unlock-threshold') || "0");
+            const isUnlocked = this.potionsCollected >= threshold;
+
+            if (isUnlocked) {
+                // Should be unlocked
+                if (btn.classList.contains('hidden') || btn.classList.contains('locked')) {
+                    // Transition from hidden/locked -> Unlocked
+                    this.restoreButtonState(btn); // Clean up locks
+                    this.animateGemUnlock(btn);
+                    btn.classList.remove('locked');
+                }
+            } else {
+                // Not unlocked yet
+                // If we are currently running an unlock animation, DO NOT show the next goal yet
+                if (!nextGoalShown && !this.isUnlocking) {
+                    // This is the NEXT unlock target: Show as Locked
+
+                    if (btn.classList.contains('hidden')) {
+                        btn.classList.remove('hidden');
+                        btn.classList.add('pop-in');
+                        setTimeout(() => btn.classList.remove('pop-in'), 500);
+                    }
+
+                    btn.classList.add('locked');
+                    btn.classList.remove('unlock-anim');
+
+                    // Style reset
+                    btn.style.opacity = '';
+                    btn.style.filter = '';
+
+                    // Update Remaining Count
+                    const remaining = threshold - this.potionsCollected;
+                    this.updateLockCount(btn, remaining);
+
+                    nextGoalShown = true;
+                } else {
+                    // Future targets: Keep hidden
+                    btn.classList.add('hidden');
+                    btn.classList.remove('locked');
+                    this.removeLockCount(btn);
+                }
+            }
+        });
+    }
+
+    updateLockCount(btn, count) {
+        let label = btn.querySelector('.lock-count');
+        if (!label) {
+            label = document.createElement('span');
+            label.className = 'lock-count';
+            btn.appendChild(label);
+        }
+        label.textContent = count;
+    }
+
+    removeLockCount(btn) {
+        const label = btn.querySelector('.lock-count');
+        if (label) {
+            btn.removeChild(label);
+        }
+    }
+
+    restoreButtonState(btn) {
+        btn.classList.remove('locked');
+        this.removeLockCount(btn);
+    }
+
+    animateGemUnlock(btn) {
+        this.isUnlocking = true; // Block next goal display
+
+        // 1. Reveal slot to get coordinates
+        btn.classList.remove('hidden');
+        btn.style.opacity = '0'; // Hide content until arrival
+
+        // 2. Get Coordinates
+        const sourceIcon = document.getElementById('potion-icon');
+        let startX = 0, startY = 0;
+
+        if (sourceIcon) {
+            const rect = sourceIcon.getBoundingClientRect();
+            startX = rect.left + rect.width / 2;
+            startY = rect.top + rect.height / 2;
+        } else {
+            // Fallback center screen
+            startX = window.innerWidth / 2;
+            startY = window.innerHeight / 2;
+        }
+
+        const destRect = btn.getBoundingClientRect();
+        const destX = destRect.left + destRect.width / 2;
+        const destY = destRect.top + destRect.height / 2;
+
+        // 3. Create Flying Element
+        const flyer = document.createElement('img');
+        const originalImg = btn.querySelector('img');
+        flyer.src = originalImg ? originalImg.src : '';
+        flyer.style.position = 'fixed';
+        flyer.style.left = `${startX}px`;
+        flyer.style.top = `${startY}px`;
+        flyer.style.width = '40px';
+        flyer.style.height = '40px';
+        flyer.style.transform = 'translate(-50%, -50%) scale(0.5)';
+        flyer.style.zIndex = '9999';
+        flyer.style.transition = 'all 1.0s cubic-bezier(0.22, 1, 0.36, 1)';
+        flyer.style.pointerEvents = 'none';
+
+        document.body.appendChild(flyer);
+
+        // 4. Animate
+        // Force Reflow
+        flyer.offsetHeight;
+
+        flyer.style.left = `${destX}px`;
+        flyer.style.top = `${destY}px`;
+        flyer.style.transform = 'translate(-50%, -50%) scale(1.0)';
+
+        // 5. On Finish
+        setTimeout(() => {
+            if (flyer.parentNode) flyer.parentNode.removeChild(flyer);
+
+            // Show real button and trigger shine
+            btn.style.opacity = '';
+            btn.classList.add('unlock-anim');
+
+            setTimeout(() => {
+                btn.classList.remove('unlock-anim');
+                this.isUnlocking = false;
+                this.checkUnlock(); // Next goal appears AFTER shine is done
+            }, 1000); // Matches animation duration approx
+        }, 1000);
     }
 
     setupSettingsUI() {
@@ -815,6 +958,7 @@ class Game {
         for (let i = 0; i < 20; i++) {
             this.spawnAnt(true);
         }
+        this.checkUnlock();
     }
 
     setupTitleScreen() {
@@ -866,6 +1010,13 @@ class Game {
                 this.scoreDisplay.style.transform = "scale(1)";
             }, 200);
         }
+
+        this.checkUnlock();
+
+        // Spawn flying potion animation
+        // this.spawnFlyingPotion(this.pot.color); // Already called in pot.triggerCollection but logic is split.
+        // Actually collectPotion is called BY flying potion arrival in current logic?
+        // Let's check updateFlyingPotions. Yes.
     }
 
     spawnFlyingPotion(color) {

@@ -548,3 +548,95 @@ input[type=range]::-webkit-slider-thumb:hover {
     background: #ff4444;
     color: #fff;
 }
+
+/* Utility */
+.hidden {
+    display: none !important;
+}
+
+@keyframes unlockShine {
+    0% {
+        transform: scale(0.5);
+        opacity: 0;
+        filter: brightness(1);
+    }
+
+    50% {
+        transform: scale(1.5);
+        opacity: 1;
+        filter: brightness(2) drop-shadow(0 0 20px white);
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+        filter: brightness(1);
+    }
+}
+
+.unlock-anim {
+    animation: unlockShine 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes popIn {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+
+    70% {
+        transform: scale(1.1);
+        opacity: 0.9;
+    }
+
+    100% {
+        transform: scale(0.9);
+        opacity: 0.8;
+    }
+}
+
+.pop-in {
+    animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.locked {
+    filter: blur(3px) brightness(60%);
+    opacity: 0.8;
+    pointer-events: none;
+    transform: scale(0.9);
+    position: relative;
+    /* Ensure text containment context if needed, though button is typically relative/inline-block */
+}
+
+.lock-count {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Cinzel', serif;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 0 0 4px #000, 0 0 8px #000;
+    pointer-events: none;
+    z-index: 10;
+    white-space: nowrap;
+    filter: none;
+    /* Prevent parent blur from affecting text if possible, but filter applies to element content. */
+}
+
+/* Note: CSS filter on parent blurs children too. 
+   To fix this, we'll need to apply the blur to the IMG inside the button, separate from the text.
+   So let's adjust .locked definition.
+*/
+.locked img {
+    filter: blur(3px) brightness(60%);
+}
+
+.locked {
+    /* Reset parent filter so text is sharp */
+    filter: none;
+    opacity: 0.8;
+    pointer-events: none;
+    transform: scale(0.9);
+}
