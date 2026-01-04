@@ -104,6 +104,7 @@ class Honey {
         this.amount = this.maxAmount;
         this.radius = 15;
         this.wobbleTime = 0;
+        this.wobbleIntensity = 1.0; // Start strong
     }
 
     update(deltaTime) {
@@ -111,7 +112,8 @@ class Honey {
         if (this.amount <= 0) {
             this.radius = 0;
         }
-        this.wobbleTime += deltaTime * 3;
+        this.wobbleTime += deltaTime * 18; // Even faster wobble
+        this.wobbleIntensity *= 0.92; // Decay slower
     }
 
     draw(ctx) {
@@ -120,9 +122,9 @@ class Honey {
         ctx.save();
         ctx.translate(this.x, this.y);
 
-        // Wobble effect
-        const scaleX = 1 + Math.sin(this.wobbleTime) * 0.05;
-        const scaleY = 1 + Math.cos(this.wobbleTime) * 0.05;
+        // Jelly Wobble effect
+        const scaleX = 1 + Math.sin(this.wobbleTime) * 0.6 * this.wobbleIntensity;
+        const scaleY = 1 + Math.cos(this.wobbleTime) * 0.6 * this.wobbleIntensity;
         ctx.scale(scaleX, scaleY);
 
         this.radius = Math.max(0, this.radius);
