@@ -6,6 +6,8 @@ class SoundManager {
         // 音声バッファ
         this.splashBuffer = null;
         this.bottleBuffer = null;
+        this.pourBuffer = null;
+        this.activePourSources = []; // Active pour sound sources for concurrency control
 
         // AudioResourcesが読み込まれていればそこからロード
         if (typeof AudioResources !== 'undefined') {
@@ -18,6 +20,13 @@ class SoundManager {
                 this.bottleBuffer = buffer;
                 console.log('Bottle sound loaded from embedded data');
             });
+
+            if (AudioResources.pour) {
+                this.decodeBase64Sound(AudioResources.pour).then(buffer => {
+                    this.pourBuffer = buffer;
+                    console.log('Pour sound loaded from embedded data');
+                });
+            }
         }
     }
 
@@ -126,6 +135,45 @@ class SoundManager {
             noiseSource.start(startTime);
             noiseSource.stop(startTime + 0.02);
         });
+    }
+
+    // 液体収集音（注ぐ音）
+    playPourSound() {
+        if (this.audioContext.state === 'suspended') {
+            this.audioContext.resume();
+        }
+
+        if (this.pourBuffer) {
+            // Limit concurrency to 2
+            while (this.activePourSources.length >= 2) {
+                const oldSource = this.activePourSources.shift();
+                try { oldSource.stop(); } catch (e) { /* ignore if already stopped */ }
+            }
+
+            const source = this.audioContext.createBufferSource();
+            const gainNode = this.audioContext.createGain();
+
+            source.buffer = this.pourBuffer;
+            gainNode.gain.value = 0.5; // Set volume to 0.5
+
+            source.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
+
+            // Track this source
+            this.activePourSources.push(source);
+
+            // Cleanup on end
+            source.onended = () => {
+                const index = this.activePourSources.indexOf(source);
+                if (index > -1) {
+                    this.activePourSources.splice(index, 1);
+                }
+            };
+
+            source.start(0);
+        } else {
+            console.warn('Pour sound not loaded yet or missing');
+        }
     }
 
     // 満タン音 - 「水滴3.mp3」または合成音

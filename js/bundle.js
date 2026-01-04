@@ -466,6 +466,8 @@ class Ant {
         // Much closer distance threshold for the small entrance
         if (dist < 15) {
             this.state = 'DEPOSIT';
+            // Play pour sound when starting to deposit
+            this.game.soundManager.playPourSound();
         }
     }
 
