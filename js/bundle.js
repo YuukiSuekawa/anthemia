@@ -197,6 +197,12 @@ class Pot {
         this.image.src = 'Resources/potion_empty.png';
         this.imageLoaded = false;
         this.image.onload = () => { this.imageLoaded = true; };
+
+        this.scale = 1.0;
+    }
+
+    setScale(isPortrait) {
+        this.scale = isPortrait ? 0.5 : 1.0;
     }
 
     addHoney(color, amount) {
@@ -234,7 +240,7 @@ class Pot {
     getEntranceLocation() {
         // Offset Y to find the bottle mouth (Top of neck)
         // Shifted to upper right as requested
-        return { x: this.x + 45, y: this.y - 85 };
+        return { x: this.x + 45 * this.scale, y: this.y - 85 * this.scale };
     }
 
     updateUI() {
@@ -252,8 +258,9 @@ class Pot {
     draw(ctx) {
         ctx.save();
         ctx.translate(this.x, this.y);
+        ctx.scale(this.scale, this.scale);
 
-        // Doubled Size
+        // Doubled Size (Base)
         const w = 280;
         const h = 280;
         const imgX = -w / 2;
@@ -404,6 +411,12 @@ class Ant {
         const dist = Utils.distance(this.x, this.y, nest.x, nest.y);
         if (dist < 20) {
             // Entered nest
+            if (this.isRetiring) {
+                // Remove self
+                this.game.removeAnt(this);
+                return;
+            }
+
             this.x = nest.x;
             this.y = nest.y;
             this.state = 'IN_NEST';
@@ -769,8 +782,15 @@ class Game {
         this.honeys = [];
         this.pot = new Pot(canvas.width / 2, canvas.height / 2);
 
+        // Initial Scale Check
+        this.resize();
+
         this.lastTime = 0;
         this.selectedColor = '#FF3333';
+
+        // Settings
+        this.maxAnts = 50;
+        this.timeScale = 1.0;
 
         // Potion Collection System
         this.potionsCollected = 0;
@@ -809,6 +829,7 @@ class Game {
         this.setupSettingsUI();
         this.loadProgress(); // Restore saved data
         this.checkUnlock();
+        this.manageAntPopulation(); // Initial check
     }
 
     checkUnlock() {
@@ -960,6 +981,39 @@ class Game {
         const closeSettingsBtn = document.getElementById('close-settings-btn');
         const volumeSlider = document.getElementById('volume-slider');
         const resetBtn = document.getElementById('reset-btn');
+        const maxAntsSlider = document.getElementById('max-ants-slider');
+        const maxAntsVal = document.getElementById('max-ants-val');
+        const gameSpeedSlider = document.getElementById('game-speed-slider');
+        const gameSpeedVal = document.getElementById('game-speed-val');
+
+        // Initialize UI values
+        if (maxAntsSlider) {
+            maxAntsSlider.value = this.maxAnts;
+            if (maxAntsVal) maxAntsVal.textContent = this.maxAnts;
+        }
+        if (gameSpeedSlider) {
+            gameSpeedSlider.value = this.timeScale;
+            if (gameSpeedVal) gameSpeedVal.textContent = this.timeScale.toFixed(1);
+        }
+
+        // Max Ants Control
+        if (maxAntsSlider) {
+            maxAntsSlider.addEventListener('input', (e) => {
+                this.maxAnts = parseInt(e.target.value, 10);
+                if (maxAntsVal) maxAntsVal.textContent = this.maxAnts;
+                this.manageAntPopulation();
+                this.saveProgress();
+            });
+        }
+
+        // Game Speed Control
+        if (gameSpeedSlider) {
+            gameSpeedSlider.addEventListener('input', (e) => {
+                this.timeScale = parseFloat(e.target.value);
+                if (gameSpeedVal) gameSpeedVal.textContent = this.timeScale.toFixed(1);
+                this.saveProgress();
+            });
+        }
 
         // Open Settings
         settingsBtn.addEventListener('click', (e) => {
@@ -975,6 +1029,7 @@ class Game {
             this.isPaused = false;
             // Reset lastTime to avoid huge delta time jump
             this.lastTime = performance.now();
+            this.manageAntPopulation(); // Ensure population helps adjust on close
         });
 
         // Volume Control
@@ -1088,6 +1143,8 @@ class Game {
 
     saveProgress() {
         localStorage.setItem('coloringAnts_score', this.potionsCollected);
+        localStorage.setItem('coloringAnts_maxAnts', this.maxAnts);
+        localStorage.setItem('coloringAnts_timeScale', this.timeScale);
     }
 
     loadProgress() {
@@ -1096,6 +1153,14 @@ class Game {
             this.potionsCollected = parseInt(savedScore, 10);
             if (this.scoreDisplay) {
                 this.scoreDisplay.textContent = this.potionsCollected;
+            }
+            const savedMaxAnts = localStorage.getItem('coloringAnts_maxAnts');
+            if (savedMaxAnts !== null) {
+                this.maxAnts = parseInt(savedMaxAnts, 10);
+            }
+            const savedTimeScale = localStorage.getItem('coloringAnts_timeScale');
+            if (savedTimeScale !== null) {
+                this.timeScale = parseFloat(savedTimeScale);
             }
         }
     }
@@ -1175,6 +1240,9 @@ class Game {
     }
 
     spawnAnt(startInNest = false) {
+        // Enforce Max Ants
+        if (this.ants.length >= this.maxAnts) return;
+
         let x, y;
         if (startInNest) {
             // Spawn from nest
@@ -1329,6 +1397,21 @@ class Game {
         }
     }
 
+    resize() {
+        if (this.canvas && this.canvas.parentElement) {
+            this.canvas.width = this.canvas.parentElement.clientWidth;
+            this.canvas.height = this.canvas.parentElement.clientHeight;
+
+            if (this.pot) {
+                this.pot.x = this.canvas.width / 2;
+                this.pot.y = this.canvas.height / 2;
+
+                const isPortrait = this.canvas.height > this.canvas.width;
+                this.pot.setScale(isPortrait);
+            }
+        }
+    }
+
     start() {
         requestAnimationFrame((time) => this.loop(time));
     }
@@ -1342,8 +1425,8 @@ class Game {
         const deltaTime = (currentTime - this.lastTime) / 1000;
         this.lastTime = currentTime; this.lastTime = currentTime;
 
-        // Limiting delta time for safety
-        const dt = Math.min(deltaTime, 0.1);
+        // Limiting delta time for safety and applying Time Scale
+        const dt = Math.min(deltaTime, 0.1) * this.timeScale;
 
         this.update(dt);
         this.draw();
@@ -1397,6 +1480,67 @@ class Game {
         this.particles.draw(this.ctx);
         this.drawFlyingPotions(this.ctx);
     }
+    manageAntPopulation() {
+        const currentCount = this.ants.length;
+        const max = this.maxAnts;
+
+        if (currentCount > max) {
+            // Needed reduction
+            const excess = currentCount - max;
+
+            // Count currently retiring
+            const retiringAnts = this.ants.filter(a => a.isRetiring);
+
+            if (retiringAnts.length < excess) {
+                // Need to retire more
+                let toRetire = excess - retiringAnts.length;
+
+                for (const ant of this.ants) {
+                    if (toRetire <= 0) break;
+                    if (!ant.isRetiring && ant.state !== 'IN_NEST') {
+                        ant.state = 'TO_NEST';
+                        ant.isRetiring = true;
+                        toRetire--;
+                    }
+                }
+            } else if (retiringAnts.length > excess) {
+                // Too many are retiring -> Rescue some
+                let toRescue = retiringAnts.length - excess;
+
+                for (const ant of retiringAnts) {
+                    if (toRescue <= 0) break;
+                    ant.isRetiring = false;
+                    ant.state = 'IDLE';
+                    toRescue--;
+                }
+            }
+        } else {
+            // Count <= max
+            // Rescue ALL retiring ants first
+            this.ants.forEach(a => {
+                if (a.isRetiring) {
+                    a.isRetiring = false;
+                    a.state = 'IDLE';
+                }
+            });
+
+            // If still short, spawn new ones
+            if (currentCount < max) {
+                const diff = max - currentCount;
+                for (let i = 0; i < diff; i++) {
+                    this.spawnAnt(true);
+                }
+            }
+        }
+    }
+
+    removeAnt(ant) {
+        const index = this.ants.indexOf(ant);
+        if (index > -1) {
+            this.ants.splice(index, 1);
+            this.updateAntCount();
+        }
+    }
 }
 
 /* Main */
@@ -1404,16 +1548,16 @@ window.addEventListener('load', () => {
     const canvas = document.getElementById('game-canvas');
     const container = document.getElementById('game-container');
 
-    function resize() {
-        canvas.width = container.clientWidth;
-        canvas.height = container.clientHeight;
-    }
-
-    window.addEventListener('resize', resize);
-    resize();
-
     const game = new Game(canvas);
-    window.game = game; // Expose to window for Pot access
+    window.game = game;
+
+    // Initial Resize
+    game.resize();
+
+    window.addEventListener('resize', () => {
+        game.resize();
+    });
+
     game.start();
 
     const colorBtns = document.querySelectorAll('.color-btn');
