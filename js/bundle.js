@@ -185,6 +185,11 @@ class Pot {
     triggerCollection() {
         this.isCollecting = true;
 
+        // Play splash sound effect
+        if (window.game && window.game.soundManager) {
+            window.game.soundManager.playSplashSound();
+        }
+
         // Spawn Flying Potion Animation
         if (window.game) window.game.spawnFlyingPotion(this.color);
 
@@ -638,6 +643,9 @@ class Game {
         this.flyingPotions = []; // List of active flying potions animations
         this.potionIcon = document.getElementById('potion-icon'); // Target for animation
 
+        // Sound Manager
+        this.soundManager = new SoundManager();
+
         // Load Nest Image
         this.nestImage = new Image();
         this.nestImage.src = "Resources/nest_hole2.png?v=" + new Date().getTime();
@@ -682,6 +690,9 @@ class Game {
     }
 
     spawnFlyingPotion(color) {
+        // Play bottle sound effect
+        this.soundManager.playBottleSound();
+
         // Target position (UI icon)
         let tx = this.canvas.width - 50;
         let ty = this.canvas.height - 50;
@@ -782,6 +793,9 @@ class Game {
 
         // Spawn honey
         this.honeys.push(new Honey(x, y, this.selectedColor));
+
+        // Play drop sound effect
+        this.soundManager.playDropSound();
 
         // Spawn particles
         const c = Utils.hexToRgb(this.selectedColor);

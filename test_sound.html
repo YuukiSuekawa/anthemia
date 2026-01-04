@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>サウンドテスト - カランカラン</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            font-size: 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🍾 サウンドテスト</h1>
+        <p>各ボタンをクリックして音を確認してください</p>
+
+        <button id="bottleBtn">瓶の音（カランカラン）</button>
+        <button id="rollingBtn">瓶の転がる音（ゴロゴロ）</button>
+        <button id="dropBtn">液体設置音（ぴちょん）</button>
+        <button id="splashBtn">満タン音（ちゃっぽん）</button>
+
+        <div class="info">
+            <p>💡 音が聞こえない場合：</p>
+            <ul style="text-align: left; display: inline-block;">
+                <li>ボリュームを確認してください</li>
+                <li>ブラウザの音声設定を確認してください</li>
+                <li>コンソールでエラーがないか確認してください</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="js/AudioResources.js"></script>
+    <script src="js/SoundManager.js"></script>
+    <script>
+        const soundManager = new SoundManager();
+
+        document.getElementById('bottleBtn').addEventListener('click', () => {
+            console.log('瓶の音を再生');
+            soundManager.playBottleSound();
+        });
+
+        document.getElementById('rollingBtn').addEventListener('click', () => {
+            console.log('転がる音を再生');
+            soundManager.playRollingSound();
+        });
+
+        document.getElementById('dropBtn').addEventListener('click', () => {
+            console.log('液体設置音を再生');
+            soundManager.playDropSound();
+        });
+
+        document.getElementById('splashBtn').addEventListener('click', () => {
+            console.log('満タン音を再生');
+            soundManager.playSplashSound();
+        });
+    </script>
+</body>
+
+</html>
