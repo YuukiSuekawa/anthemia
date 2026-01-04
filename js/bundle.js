@@ -381,6 +381,7 @@ class Ant {
     updateExitingNest(dt) {
         // Move away from nest
         const dist = Utils.distance(this.x, this.y, this.game.nestPosition.x, this.game.nestPosition.y);
+        this.avoidPot(dt);
         if (dist > 50) {
             this.state = 'IDLE';
         }
@@ -391,6 +392,7 @@ class Ant {
         const nest = this.game.nestPosition;
         const angleToNest = Math.atan2(nest.y - this.y, nest.x - this.x);
         this.smoothTurn(angleToNest, dt);
+        this.avoidPot(dt);
 
         const dist = Utils.distance(this.x, this.y, nest.x, nest.y);
         if (dist < 20) {
@@ -409,7 +411,56 @@ class Ant {
             this.target = nearestHoney;
             this.state = 'SEEK';
         }
+        this.avoidPot(dt);
         this.keepInBounds();
+    }
+
+    avoidPot(dt) {
+        const pot = this.game.pot;
+        const potCenterX = pot.x;
+        const potCenterY = pot.y + 50;
+        const potRadius = 60;
+        const avoidanceRadius = potRadius + 40; // Wider detection for smoothness
+
+        const dx = this.x - potCenterX;
+        const dy = this.y - potCenterY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < avoidanceRadius) {
+            const angleAway = Math.atan2(dy, dx);
+
+            // Tangents with Outward Bias (Spiral Out)
+            // Tangents with Outward Bias (Spiral Out)
+            const spiralBias = Math.PI / 6; // 30 degrees outward
+            // To spiral OUT, we need to angle closer to 'angleAway' (0 deg relative)
+            // Original Tangents were +/- 90 deg. We want +/- 60 deg.
+            const tangent1 = angleAway + Math.PI / 2 - spiralBias;
+            const tangent2 = angleAway - Math.PI / 2 + spiralBias;
+
+            // Determine which tangent is closer to current heading
+            // Simple angle diff check
+            const diff1 = Math.abs(Math.atan2(Math.sin(tangent1 - this.angle), Math.cos(tangent1 - this.angle)));
+            const diff2 = Math.abs(Math.atan2(Math.sin(tangent2 - this.angle), Math.cos(tangent2 - this.angle)));
+
+            const targetAngle = (diff1 < diff2) ? tangent1 : tangent2;
+
+            // Intensity: 0 at outer edge, 1 at inner radius
+            let intensity = 1.0 - (dist - potRadius) / (avoidanceRadius - potRadius);
+            intensity = Math.max(0, Math.min(1, intensity));
+
+            // Turn speed increases as we get closer
+            // Base turn speed + added urgency
+            const turnRate = 2.0 + intensity * 4.0;
+
+            this.smoothTurn(targetAngle, dt * turnRate);
+
+            // Hard collision pushout
+            if (dist < potRadius) {
+                const push = (potRadius - dist) * 8 * dt; // Stronger push
+                this.x += Math.cos(angleAway) * push;
+                this.y += Math.sin(angleAway) * push;
+            }
+        }
     }
 
     updateSeek(dt) {
@@ -420,6 +471,7 @@ class Ant {
         }
         const angleToTarget = Math.atan2(this.target.y - this.y, this.target.x - this.x);
         this.smoothTurn(angleToTarget, dt);
+        this.avoidPot(dt);
         const dist = Utils.distance(this.x, this.y, this.target.x, this.target.y);
         if (dist < this.target.radius + 8) {
             this.state = 'EAT';
@@ -461,6 +513,7 @@ class Ant {
 
         const angleToPot = Math.atan2(targetY - this.y, targetX - this.x);
         this.smoothTurn(angleToPot, dt);
+        this.avoidPot(dt);
 
         const dist = Utils.distance(this.x, this.y, targetX, targetY);
         // Much closer distance threshold for the small entrance
@@ -851,6 +904,12 @@ class Game {
         const rect = this.canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
+
+        // Check if click is on the potion (prevent spawning inside avoidance zone)
+        const potCenterX = this.pot.x;
+        const potCenterY = this.pot.y + 50;
+        const distToPot = Utils.distance(x, y, potCenterX, potCenterY);
+        if (distToPot < 65) return; // Ignore clicks on the potion body
 
         // Spawn honey
         this.honeys.push(new Honey(x, y, this.selectedColor));
