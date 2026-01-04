@@ -2,6 +2,7 @@
 class SoundManager {
     constructor() {
         this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        this.masterVolume = 1.0;
 
         // 音声バッファ
         this.splashBuffer = null;
@@ -38,6 +39,10 @@ class SoundManager {
         }
     }
 
+    setMasterVolume(volume) {
+        this.masterVolume = Math.max(0, Math.min(1, volume));
+    }
+
     // Base64/DataURI音声のデコード関数
     async decodeBase64Sound(dataUri) {
         try {
@@ -53,6 +58,7 @@ class SoundManager {
 
     // 液体設置音「ぴちょん」- 短い水滴の音
     playDropSound() {
+        if (this.masterVolume <= 0) return;
         if (this.audioContext.state === 'suspended') {
             this.audioContext.resume();
         }
@@ -66,8 +72,8 @@ class SoundManager {
         oscillator.frequency.setValueAtTime(800, this.audioContext.currentTime);
         oscillator.frequency.exponentialRampToValueAtTime(200, this.audioContext.currentTime + 0.1);
 
-        gainNode.gain.setValueAtTime(0.3, this.audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.1);
+        gainNode.gain.setValueAtTime(0.3 * this.masterVolume, this.audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.01 * this.masterVolume, this.audioContext.currentTime + 0.1);
 
         oscillator.start(this.audioContext.currentTime);
         oscillator.stop(this.audioContext.currentTime + 0.1);
@@ -75,6 +81,7 @@ class SoundManager {
 
     // 瓶の当たる音 - 「氷の入ったグラス.mp3」または合成音
     playBottleSound() {
+        if (this.masterVolume <= 0) return;
         if (this.audioContext.state === 'suspended') {
             this.audioContext.resume();
         }
@@ -84,8 +91,13 @@ class SoundManager {
         if (this.bottleBuffer) {
             // 音声ファイル再生
             const source = this.audioContext.createBufferSource();
+            const gainNode = this.audioContext.createGain();
+
             source.buffer = this.bottleBuffer;
-            source.connect(this.audioContext.destination);
+            gainNode.gain.value = 1.0 * this.masterVolume;
+
+            source.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
             source.start(0);
         } else {
             // フォールバック：合成音「カランカラン」
@@ -115,8 +127,8 @@ class SoundManager {
             oscillator.frequency.setValueAtTime(frequencies[index], startTime);
             oscillator.frequency.exponentialRampToValueAtTime(frequencies[index] * 0.6, startTime + duration);
 
-            gainNode.gain.setValueAtTime(volumes[index], startTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+            gainNode.gain.setValueAtTime(volumes[index] * this.masterVolume, startTime);
+            gainNode.gain.linearRampToValueAtTime(0.01 * this.masterVolume, startTime + duration);
 
             oscillator.start(startTime);
             oscillator.stop(startTime + duration);
@@ -137,8 +149,8 @@ class SoundManager {
             noiseFilter.frequency.setValueAtTime(2000, startTime);
 
             // ノイズのボリューム（短く鋭く）
-            noiseGain.gain.setValueAtTime(volumes[index] * 0.4, startTime);
-            noiseGain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.02);
+            noiseGain.gain.setValueAtTime(volumes[index] * 0.4 * this.masterVolume, startTime);
+            noiseGain.gain.linearRampToValueAtTime(0.01 * this.masterVolume, startTime + 0.02);
 
             noiseSource.start(startTime);
             noiseSource.stop(startTime + 0.02);
@@ -147,6 +159,7 @@ class SoundManager {
 
     // 液体収集音（注ぐ音）
     playPourSound() {
+        if (this.masterVolume <= 0) return;
         if (this.audioContext.state === 'suspended') {
             this.audioContext.resume();
         }
@@ -173,7 +186,7 @@ class SoundManager {
             const gainNode = this.audioContext.createGain();
 
             source.buffer = this.pourBuffer;
-            gainNode.gain.value = 0.5; // Set volume to 0.5
+            gainNode.gain.value = 0.5 * this.masterVolume; // Set volume to 0.5 * master
 
             source.connect(gainNode);
             gainNode.connect(this.audioContext.destination);
@@ -198,6 +211,7 @@ class SoundManager {
 
     // 決定音（宝石クリック）
     playSelectSound() {
+        if (this.masterVolume <= 0) return;
         if (this.audioContext.state === 'suspended') {
             this.audioContext.resume();
         }
@@ -207,7 +221,7 @@ class SoundManager {
             const gainNode = this.audioContext.createGain();
 
             source.buffer = this.selectBuffer;
-            gainNode.gain.value = 0.2;
+            gainNode.gain.value = 0.2 * this.masterVolume;
 
             source.connect(gainNode);
             gainNode.connect(this.audioContext.destination);
@@ -220,7 +234,7 @@ class SoundManager {
             oscillator.connect(gainNode);
             gainNode.connect(this.audioContext.destination);
             oscillator.frequency.value = 1200;
-            gainNode.gain.value = 0.1;
+            gainNode.gain.value = 0.1 * this.masterVolume;
             oscillator.start();
             oscillator.stop(this.audioContext.currentTime + 0.05);
         }
@@ -228,6 +242,7 @@ class SoundManager {
 
     // 満タン音 - 「水滴3.mp3」または合成音
     playSplashSound() {
+        if (this.masterVolume <= 0) return;
         if (this.audioContext.state === 'suspended') {
             this.audioContext.resume();
         }
@@ -237,12 +252,17 @@ class SoundManager {
         if (this.splashBuffer) {
             // 音声ファイル再生
             const source = this.audioContext.createBufferSource();
+            const gainNode = this.audioContext.createGain();
+
             source.buffer = this.splashBuffer;
-            source.connect(this.audioContext.destination);
+            gainNode.gain.value = 1.0 * this.masterVolume;
+
+            source.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
             source.start(0);
         } else {
-            // フォールバック：合成音
-            this.playSynthesizedSplashSound();
+            // Fallback: silence
+            // this.playSynthesizedSplashSound();
         }
     }
 
@@ -260,16 +280,16 @@ class SoundManager {
         oscillator.frequency.setValueAtTime(400, this.audioContext.currentTime);
         oscillator.frequency.exponentialRampToValueAtTime(100, this.audioContext.currentTime + 0.2);
 
-        gainNode.gain.setValueAtTime(0.3, this.audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.2);
+        gainNode.gain.setValueAtTime(0.3 * this.masterVolume, this.audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.01 * this.masterVolume, this.audioContext.currentTime + 0.2);
 
         // ノイズ部分（水しぶき）
         noiseSource.buffer = noiseBuffer;
         noiseSource.connect(noiseGain);
         noiseGain.connect(this.audioContext.destination);
 
-        noiseGain.gain.setValueAtTime(0.1, this.audioContext.currentTime);
-        noiseGain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.15);
+        noiseGain.gain.setValueAtTime(0.1 * this.masterVolume, this.audioContext.currentTime);
+        noiseGain.gain.linearRampToValueAtTime(0.01 * this.masterVolume, this.audioContext.currentTime + 0.15);
 
         oscillator.start(this.audioContext.currentTime);
         oscillator.stop(this.audioContext.currentTime + 0.2);
@@ -279,6 +299,7 @@ class SoundManager {
 
     // 瓶の転がる音「ゴロゴロ...カラン」
     playRollingSound(duration = 1.0) {
+        if (this.masterVolume <= 0) return;
         console.log("Rolling sound played");
         const t = this.audioContext.currentTime;
 
@@ -293,8 +314,8 @@ class SoundManager {
         noiseFilter.frequency.linearRampToValueAtTime(200, t + duration); // だんだんこもる
 
         const noiseGain = this.audioContext.createGain();
-        noiseGain.gain.setValueAtTime(0.3, t);
-        noiseGain.gain.exponentialRampToValueAtTime(0.01, t + duration);
+        noiseGain.gain.setValueAtTime(0.3 * this.masterVolume, t);
+        noiseGain.gain.linearRampToValueAtTime(0.01 * this.masterVolume, t + duration);
 
         noiseSource.connect(noiseFilter);
         noiseFilter.connect(noiseGain);
@@ -310,16 +331,11 @@ class SoundManager {
         lfo.frequency.linearRampToValueAtTime(2, t + duration); // だんだん遅くなる
 
         const lfoGain = this.audioContext.createGain();
-        lfoGain.gain.value = 0.5; // 変調の深さ
-
-        noiseGain.gain.connect(lfoGain); // TODO: 正しいAM変調の実装ではないが、簡易的に強弱をつけるためこれをgainNodeにつなぐのが一般的だが、ここではnoiseGain自体を揺らしたい。
-        // Web Audio APIでAM変調をするには、GainNodeのgain AudioParamにOscillatorをつなぐ
-        // が、noiseGain.gainはすでにエンベロープで制御されている。
-        // もう一つGainNodeを挟むのが正解。
+        lfoGain.gain.value = 0.5 * this.masterVolume; // 変調の深さ
 
         // 修正: AM変調用のGainNodeを追加
         const amGain = this.audioContext.createGain();
-        amGain.gain.value = 0.5;
+        amGain.gain.value = 0.5 * this.masterVolume;
 
         // LFO -> amGain.gain
         // noiseSource -> noiseFilter -> noiseGain(エンベロープ) -> amGain(揺らぎ) -> destination
@@ -333,10 +349,10 @@ class SoundManager {
 
         // LFOをamGainのgainに接続して揺らす（ベースのゲイン中心に）
         // gain.valueは1.0にしておき、LFOで+-させる
-        amGain.gain.setValueAtTime(1.0, t);
+        amGain.gain.setValueAtTime(1.0 * this.masterVolume, t);
 
         const lfoAmp = this.audioContext.createGain();
-        lfoAmp.gain.value = 0.5; // 揺れの大きさ
+        lfoAmp.gain.value = 0.5 * this.masterVolume; // 揺れの大きさ
         lfo.connect(lfoAmp);
         lfoAmp.connect(amGain.gain);
 
@@ -358,8 +374,8 @@ class SoundManager {
                 clickGain.connect(this.audioContext.destination);
 
                 clickGain.gain.setValueAtTime(0.0, clickTime);
-                clickGain.gain.linearRampToValueAtTime(0.05, clickTime + 0.01);
-                clickGain.gain.exponentialRampToValueAtTime(0.001, clickTime + 0.05);
+                clickGain.gain.linearRampToValueAtTime(0.05 * this.masterVolume, clickTime + 0.01);
+                clickGain.gain.linearRampToValueAtTime(0.001 * this.masterVolume, clickTime + 0.05);
 
                 clickOsc.start(clickTime);
                 clickOsc.stop(clickTime + 0.05);

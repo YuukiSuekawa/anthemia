@@ -747,7 +747,72 @@ class Game {
 
         // Game State
         this.gameState = 'TITLE'; // 'TITLE', 'PLAYING'
+        this.isPaused = false;
         this.setupTitleScreen();
+        this.setupSettingsUI();
+    }
+
+    setupSettingsUI() {
+        const settingsBtn = document.getElementById('settings-btn');
+        const settingsModal = document.getElementById('settings-modal');
+        const closeSettingsBtn = document.getElementById('close-settings-btn');
+        const volumeSlider = document.getElementById('volume-slider');
+        const resetBtn = document.getElementById('reset-btn');
+
+        // Open Settings
+        settingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent click from spawning honey
+            this.isPaused = true;
+            settingsModal.classList.remove('hidden');
+        });
+
+        // Close Settings
+        closeSettingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            settingsModal.classList.add('hidden');
+            this.isPaused = false;
+            // Reset lastTime to avoid huge delta time jump
+            this.lastTime = performance.now();
+        });
+
+        // Volume Control
+        volumeSlider.addEventListener('input', (e) => {
+            const vol = e.target.value / 100;
+            this.soundManager.setMasterVolume(vol);
+        });
+
+        // Reset Game
+        resetBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (confirm("Reset current progress?")) {
+                this.resetGame();
+                settingsModal.classList.add('hidden');
+                this.isPaused = false;
+                this.lastTime = performance.now();
+            }
+        });
+    }
+
+    resetGame() {
+        // Clear entities
+        this.ants = [];
+        this.honeys = [];
+        this.particles.particles = []; // Accessing internal array of ParticleSystem
+        this.flyingPotions = [];
+
+        // Reset Pot
+        this.pot = new Pot(this.canvas.width / 2, this.canvas.height / 2);
+
+        // Reset Score
+        this.potionsCollected = 0;
+        if (this.scoreDisplay) {
+            this.scoreDisplay.textContent = "0";
+        }
+
+        // Respawn initial ants
+        for (let i = 0; i < 20; i++) {
+            this.spawnAnt(true);
+        }
     }
 
     setupTitleScreen() {
@@ -927,8 +992,13 @@ class Game {
     }
 
     loop(currentTime) {
+        if (this.isPaused) {
+            requestAnimationFrame((time) => this.loop(time));
+            return;
+        }
+
         const deltaTime = (currentTime - this.lastTime) / 1000;
-        this.lastTime = currentTime;
+        this.lastTime = currentTime; this.lastTime = currentTime;
 
         // Limiting delta time for safety
         const dt = Math.min(deltaTime, 0.1);
@@ -1015,6 +1085,10 @@ window.addEventListener('load', () => {
     });
 
     if (colorBtns.length > 0) {
-        colorBtns[0].click();
+        // Manually initialize the first color without triggering the click event (sound)
+        const btn = colorBtns[0];
+        btn.classList.add('active');
+        const color = btn.getAttribute('data-color');
+        game.setSelectedColor(color);
     }
 });
