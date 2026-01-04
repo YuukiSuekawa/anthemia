@@ -645,7 +645,7 @@ class Game {
         this.nestImage.onload = () => { this.nestImageLoaded = true; };
 
         // Nest Configuration
-        this.nestPosition = { x: this.canvas.width / 2, y: 70 }; // Lowered slightly
+        this.nestPosition = { x: this.canvas.width / 2, y: 70 }; // Centered horizontally, fixed Y
 
 
         // Initial Spawns
@@ -657,6 +657,8 @@ class Game {
         window.addEventListener('resize', () => {
             this.pot.x = this.canvas.width / 2;
             this.pot.y = this.canvas.height / 2;
+            this.nestPosition.x = this.canvas.width / 2;
+            this.nestPosition.y = 70; // Keep Y fixed
         });
     }
 
