@@ -144,10 +144,21 @@ class SoundManager {
         }
 
         if (this.pourBuffer) {
-            // Limit concurrency to 2
-            while (this.activePourSources.length >= 2) {
-                const oldSource = this.activePourSources.shift();
-                try { oldSource.stop(); } catch (e) { /* ignore if already stopped */ }
+            const currentTime = this.audioContext.currentTime;
+            const duration = this.pourBuffer.duration;
+
+            // 1. Strict Max 2 concurrency
+            if (this.activePourSources.length >= 2) {
+                return;
+            }
+
+            // 2. If 1 is active, only allow 2nd if the first is > 50% done
+            if (this.activePourSources.length === 1) {
+                const lastSourceObj = this.activePourSources[this.activePourSources.length - 1];
+                const elapsed = currentTime - lastSourceObj.startTime;
+                if (elapsed < duration * 0.5) {
+                    return; // Too early to overlap
+                }
             }
 
             const source = this.audioContext.createBufferSource();
@@ -159,12 +170,13 @@ class SoundManager {
             source.connect(gainNode);
             gainNode.connect(this.audioContext.destination);
 
-            // Track this source
-            this.activePourSources.push(source);
+            // Track this source with start time
+            const sourceObj = { source: source, startTime: currentTime };
+            this.activePourSources.push(sourceObj);
 
             // Cleanup on end
             source.onended = () => {
-                const index = this.activePourSources.indexOf(source);
+                const index = this.activePourSources.indexOf(sourceObj);
                 if (index > -1) {
                     this.activePourSources.splice(index, 1);
                 }
