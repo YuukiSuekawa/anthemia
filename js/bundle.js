@@ -1130,6 +1130,9 @@ class Game {
     handleClick(e) {
         if (this.gameState !== 'PLAYING') return;
 
+        // Prevent click if clicking on UI
+        if (e.target.closest('.color-btn') || e.target.closest('#settings-btn')) return;
+
         const rect = this.canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
@@ -1140,15 +1143,42 @@ class Game {
         const distToPot = Utils.distance(x, y, potCenterX, potCenterY);
         if (distToPot < 65) return; // Ignore clicks on the potion body
 
-        // Spawn honey
-        this.honeys.push(new Honey(x, y, this.selectedColor));
+        const clickColorRgb = Utils.hexToRgb(this.selectedColor);
 
-        // Play drop sound effect
-        this.soundManager.playSplashSound();
+        // Check for overlap with existing honey
+        let merged = false;
+        // Iterate backwards to prioritize top-most if needed, though simple loop is fine
+        for (const honey of this.honeys) {
+            const dist = Utils.distance(x, y, honey.x, honey.y);
+            // Check if clicking inside or very close to existing honey
+            // Using a slightly generous hit area for ease of use
+            if (dist < honey.radius + 20) {
+                // Merge!
+                const addAmount = 20;
 
-        // Spawn particles
-        const c = Utils.hexToRgb(this.selectedColor);
-        this.particles.spawn(x, y, c, 10, 4);
+                // Mix colors: Current honey color (weighted by current amount) + New color (weighted by addAmount)
+                honey.color = Utils.mixColors(honey.color, honey.amount, clickColorRgb, addAmount);
+                honey.amount += addAmount;
+
+                // Trigger wobble effect for visual feedback
+                honey.wobbleTime = 0;
+                honey.wobbleIntensity = 2.0;
+
+                this.soundManager.playSplashSound();
+                merged = true;
+                break;
+            }
+        }
+
+        if (!merged) {
+            // Spawn new honey
+            this.honeys.push(new Honey(x, y, this.selectedColor));
+            // Play drop sound effect
+            this.soundManager.playSplashSound();
+        }
+
+        // Spawn particles (always spawn for feedback)
+        this.particles.spawn(x, y, clickColorRgb, 10, 4);
     }
 
     start() {
