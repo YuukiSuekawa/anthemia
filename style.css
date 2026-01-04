@@ -513,8 +513,15 @@ h1 {
         padding-top: 10vh;
     }
 
+    #title-logo {
+        max-height: 25vh;
+        width: auto;
+    }
+
     #title-screen::before {
         background-image: url('Resources/anthemia_titlebg_small_ants_1767525035647.png');
+        background-size: 100% auto;
+        background-position: center 80%;
     }
 }
 
