@@ -41,13 +41,13 @@ class Utils {
 
 /* Particle System */
 class Particle {
-    constructor(x, y, color) {
+    constructor(x, y, color, sizeScale = 1) {
         this.x = x;
         this.y = y;
         this.color = color;
         this.angle = Math.random() * Math.PI * 2;
-        this.speed = Utils.randomRange(10, 30);
-        this.size = Utils.randomRange(1, 3);
+        this.speed = Utils.randomRange(20, 50);
+        this.size = Utils.randomRange(1, 3) * sizeScale;
         this.life = 1.0;
         this.decay = Utils.randomRange(0.5, 2.0);
     }
@@ -75,9 +75,9 @@ class ParticleSystem {
         this.particles = [];
     }
 
-    spawn(x, y, color, count = 5) {
+    spawn(x, y, color, count = 5, sizeScale = 1) {
         for (let i = 0; i < count; i++) {
-            this.particles.push(new Particle(x, y, color));
+            this.particles.push(new Particle(x, y, color, sizeScale));
         }
     }
 
@@ -125,19 +125,41 @@ class Honey {
         const scaleY = 1 + Math.cos(this.wobbleTime) * 0.05;
         ctx.scale(scaleX, scaleY);
 
-        // Main Drop
+        this.radius = Math.max(0, this.radius);
+
+        // 1. Drop Shadow (Projected on ground) - "Outer Shadow"
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetX = 8;
+        ctx.shadowOffsetY = 8;
+
+        // 2. Base Body (Color) using the requested style (Overlay/Gradient feel)
         ctx.beginPath();
         ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-        const grad = ctx.createRadialGradient(-this.radius / 3, -this.radius / 3, this.radius / 10, 0, 0, this.radius);
-        grad.addColorStop(0, Utils.rgbToCss(this.color.r, this.color.g, this.color.b, 0.9));
-        grad.addColorStop(1, Utils.rgbToCss(this.color.r * 0.8, this.color.g * 0.8, this.color.b * 0.8, 0.95));
-        ctx.fillStyle = grad;
+        ctx.fillStyle = Utils.rgbToCss(this.color.r, this.color.g, this.color.b, 0.65);
         ctx.fill();
 
-        // Glossy Highlight
+        // Turn off drop shadow for internal details
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+
+        // 3. Inner Shadow / Shading Simulation
+        // Gradient from Top-Left (Dark) to Bottom-Right (Light) to mimic "inset" shadow + light transmission
+        const innerGrad = ctx.createLinearGradient(-this.radius, -this.radius, this.radius, this.radius);
+        innerGrad.addColorStop(0, 'rgba(0, 0, 0, 0.3)');   // Dark Top-Left (Inner Shadow)
+        innerGrad.addColorStop(0.5, 'rgba(0, 0, 0, 0)');    // Transparent Center
+        innerGrad.addColorStop(1, 'rgba(255, 255, 255, 0.3)'); // Light Bottom-Right (Refraction)
+
+        ctx.fillStyle = innerGrad;
+        ctx.fill();
+
+        // 4. Glossy Highlight (Crisp White Dot at Top-Left)
         ctx.beginPath();
-        ctx.ellipse(-this.radius * 0.3, -this.radius * 0.3, this.radius * 0.25, this.radius * 0.15, -Math.PI / 4, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        // Smaller, rounder highlight positioned at Top-Left
+        ctx.ellipse(-this.radius * 0.4, -this.radius * 0.4, this.radius * 0.15, this.radius * 0.12, -Math.PI / 4, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
         ctx.fill();
 
         ctx.restore();
@@ -205,7 +227,7 @@ class Pot {
     getEntranceLocation() {
         // Offset Y to find the bottle mouth (Top of neck)
         // Shifted to upper right as requested
-        return { x: this.x + 30, y: this.y - 95 };
+        return { x: this.x + 45, y: this.y - 85 };
     }
 
     updateUI() {
@@ -279,6 +301,8 @@ class Pot {
             ctx.fillStyle = '#444';
             ctx.beginPath(); ctx.arc(0, 0, 40, 0, Math.PI * 2); ctx.fill();
         }
+
+
 
         ctx.restore();
     }
@@ -656,10 +680,7 @@ class Game {
         this.nestPosition = { x: this.canvas.width / 2, y: 70 }; // Centered horizontally, fixed Y
 
 
-        // Initial Spawns
-        for (let i = 0; i < 20; i++) {
-            this.spawnAnt(true); // true = start in nest
-        }
+
 
         this.canvas.addEventListener('click', (e) => this.handleClick(e));
         window.addEventListener('resize', () => {
@@ -668,6 +689,39 @@ class Game {
             this.nestPosition.x = this.canvas.width / 2;
             this.nestPosition.y = 70; // Keep Y fixed
         });
+
+        // Game State
+        this.gameState = 'TITLE'; // 'TITLE', 'PLAYING'
+        this.setupTitleScreen();
+    }
+
+    setupTitleScreen() {
+        const titleScreen = document.getElementById('title-screen');
+        const startHandler = () => {
+            if (this.gameState === 'TITLE') {
+                this.startGame();
+            }
+        };
+        // Allow click/touch on the title screen
+        titleScreen.addEventListener('click', startHandler);
+        titleScreen.addEventListener('touchstart', startHandler);
+    }
+
+    startGame() {
+        this.gameState = 'PLAYING';
+        document.getElementById('title-screen').classList.add('hidden');
+
+        // Resume AudioContext if needed (browser policy)
+        if (this.soundManager && this.soundManager.ctx) {
+            if (this.soundManager.ctx.state === 'suspended') {
+                this.soundManager.ctx.resume();
+            }
+        }
+
+        // Initial Spawns
+        for (let i = 0; i < 20; i++) {
+            this.spawnAnt(true); // true = start in nest
+        }
     }
 
     init() {
@@ -788,6 +842,8 @@ class Game {
     }
 
     handleClick(e) {
+        if (this.gameState !== 'PLAYING') return;
+
         const rect = this.canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
@@ -800,7 +856,7 @@ class Game {
 
         // Spawn particles
         const c = Utils.hexToRgb(this.selectedColor);
-        this.particles.spawn(x, y, c, 10);
+        this.particles.spawn(x, y, c, 10, 4);
     }
 
     start() {
