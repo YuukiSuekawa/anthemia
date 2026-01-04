@@ -7,6 +7,7 @@ class SoundManager {
         this.splashBuffer = null;
         this.bottleBuffer = null;
         this.pourBuffer = null;
+        this.selectBuffer = null;
         this.activePourSources = []; // Active pour sound sources for concurrency control
 
         // AudioResourcesが読み込まれていればそこからロード
@@ -25,6 +26,13 @@ class SoundManager {
                 this.decodeBase64Sound(AudioResources.pour).then(buffer => {
                     this.pourBuffer = buffer;
                     console.log('Pour sound loaded from embedded data');
+                });
+            }
+
+            if (AudioResources.select) {
+                this.decodeBase64Sound(AudioResources.select).then(buffer => {
+                    this.selectBuffer = buffer;
+                    console.log('Select sound loaded from embedded data');
                 });
             }
         }
@@ -185,6 +193,36 @@ class SoundManager {
             source.start(0);
         } else {
             console.warn('Pour sound not loaded yet or missing');
+        }
+    }
+
+    // 決定音（宝石クリック）
+    playSelectSound() {
+        if (this.audioContext.state === 'suspended') {
+            this.audioContext.resume();
+        }
+
+        if (this.selectBuffer) {
+            const source = this.audioContext.createBufferSource();
+            const gainNode = this.audioContext.createGain();
+
+            source.buffer = this.selectBuffer;
+            gainNode.gain.value = 0.2;
+
+            source.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
+
+            source.start(0);
+        } else {
+            // Fallback: short high beep
+            const oscillator = this.audioContext.createOscillator();
+            const gainNode = this.audioContext.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
+            oscillator.frequency.value = 1200;
+            gainNode.gain.value = 0.1;
+            oscillator.start();
+            oscillator.stop(this.audioContext.currentTime + 0.05);
         }
     }
 

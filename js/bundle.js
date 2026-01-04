@@ -950,6 +950,7 @@ window.addEventListener('load', () => {
 
             const color = btn.getAttribute('data-color');
             game.setSelectedColor(color);
+            game.soundManager.playSelectSound();
             e.stopPropagation();
         });
     });
