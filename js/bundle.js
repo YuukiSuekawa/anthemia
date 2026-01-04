@@ -161,7 +161,7 @@ class Honey {
         ctx.beginPath();
         // Smaller, rounder highlight positioned at Top-Left
         ctx.ellipse(-this.radius * 0.4, -this.radius * 0.4, this.radius * 0.15, this.radius * 0.12, -Math.PI / 4, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
         ctx.fill();
 
         ctx.restore();

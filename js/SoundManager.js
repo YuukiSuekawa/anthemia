@@ -15,25 +15,25 @@ class SoundManager {
         if (typeof AudioResources !== 'undefined') {
             this.decodeBase64Sound(AudioResources.splash).then(buffer => {
                 this.splashBuffer = buffer;
-                console.log('Splash sound loaded from embedded data');
+                this.splashBuffer = buffer;
             });
 
             this.decodeBase64Sound(AudioResources.bottle).then(buffer => {
                 this.bottleBuffer = buffer;
-                console.log('Bottle sound loaded from embedded data');
+                this.bottleBuffer = buffer;
             });
 
             if (AudioResources.pour) {
                 this.decodeBase64Sound(AudioResources.pour).then(buffer => {
                     this.pourBuffer = buffer;
-                    console.log('Pour sound loaded from embedded data');
+                    this.pourBuffer = buffer;
                 });
             }
 
             if (AudioResources.select) {
                 this.decodeBase64Sound(AudioResources.select).then(buffer => {
                     this.selectBuffer = buffer;
-                    console.log('Select sound loaded from embedded data');
+                    this.selectBuffer = buffer;
                 });
             }
         }
@@ -86,7 +86,7 @@ class SoundManager {
             this.audioContext.resume();
         }
 
-        console.log("Bottle sound played");
+
 
         if (this.bottleBuffer) {
             // 音声ファイル再生
@@ -247,7 +247,7 @@ class SoundManager {
             this.audioContext.resume();
         }
 
-        console.log("Splash sound played");
+
 
         if (this.splashBuffer) {
             // 音声ファイル再生
@@ -300,7 +300,6 @@ class SoundManager {
     // 瓶の転がる音「ゴロゴロ...カラン」
     playRollingSound(duration = 1.0) {
         if (this.masterVolume <= 0) return;
-        console.log("Rolling sound played");
         const t = this.audioContext.currentTime;
 
         // 1. ゴロゴロ音（低周波ノイズ）
