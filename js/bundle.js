@@ -663,8 +663,8 @@ class Ant {
         const height = abSize;
 
         // Base transparency based on fullness
-        const fillAlpha = this.carriedHoney > 0 ? 0.4 : 0.1; // More transparent center
-        const edgeAlpha = this.carriedHoney > 0 ? 0.9 : 0.3;
+        const fillAlpha = this.carriedHoney > 0 ? 0.6 : 0.1; // Slightly more opaque center
+        const edgeAlpha = this.carriedHoney > 0 ? 0.8 : 0.3; // More transparent edge
 
         const baseColor = this.carriedHoney > 0 ? c : { r: 150, g: 150, b: 160 };
 
